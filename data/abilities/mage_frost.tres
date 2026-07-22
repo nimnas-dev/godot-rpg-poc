@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ability_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/ability_effect_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Effect"]
+script = ExtResource("2")
+kind = "area"
+damage = 46.0
+range = 145.0
+speed = 360.0
+status_type = "slow"
+status_strength = 0.3
+status_duration = 2.0
+
+[resource]
+script = ExtResource("1")
+id = &"ability.mage.frost"
+display_name = "서리 폭발"
+description = "주변의 적을 공격하고 밀쳐냅니다."
+cooldown = 4.8
+color = Color(0.54902, 0.92549, 1, 1)
+effect = SubResource("Effect")

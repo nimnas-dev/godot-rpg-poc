@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CharacterClassDefinition" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/character_class_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://data/abilities/swordsman_basic.tres" id="2"]
+[ext_resource type="Resource" path="res://data/abilities/swordsman_spin.tres" id="3"]
+[ext_resource type="Resource" path="res://data/abilities/swordsman_charge.tres" id="4"]
+[ext_resource type="Resource" path="res://data/abilities/swordsman_guard.tres" id="5"]
+
+[resource]
+script = ExtResource("1")
+id = &"class.swordsman"
+display_name = "검사"
+title = "강철의 수호자"
+body_color = Color(0.937255, 0.4, 0.364706, 1)
+accent_color = Color(1, 0.819608, 0.478431, 1)
+move_speed = 245.0
+max_health = 150.0
+power = 1.0
+health_per_level = 10.0
+actions = [ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("5")]

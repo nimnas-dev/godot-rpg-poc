@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Loop Designer"
+  short_description: "Design coherent core session and application state loops"
+  default_prompt: "Use $game-loop to design or review the player and application loops."

@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+anticipation = 0.55
+active_duration = 0.35
+recovery = 0.9
+attack_range = 235.0
+hit_radius = 34.0
+charge_distance = 220.0
+charge_width = 34.0
+direction_lock_time = 0.55
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.goblin"
+display_name = "고블린 돌격수"
+role = "charger"
+body_color = Color(0.815686, 0.478431, 0.333333, 1)
+accent_color = Color(0.960784, 0.709804, 0.419608, 1)
+base_health = 72.0
+health_per_wave = 9.0
+move_speed = 112.0
+base_damage = 11.0
+damage_per_wave = 0.8
+experience_value = 24
+attack = SubResource("Attack")

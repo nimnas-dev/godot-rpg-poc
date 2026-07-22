@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/upgrade_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"upgrade.mage.blink_nova"
+class_id = &"class.mage"
+display_name = "점멸 신성"
+description = "도착 지점에 폭발을 일으키고 쿨다운이 6% 감소합니다."
+max_stacks = 3
+effect_key = "blink_nova"

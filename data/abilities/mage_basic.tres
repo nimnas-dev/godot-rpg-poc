@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ability_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/ability_effect_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Effect"]
+script = ExtResource("2")
+kind = "projectile"
+damage = 35.0
+range = 1.8
+radius = 9.0
+speed = 590.0
+pierce = 1
+
+[resource]
+script = ExtResource("1")
+id = &"ability.mage.bolt"
+display_name = "마력탄"
+description = "적을 관통하는 마력탄을 발사합니다."
+cooldown = 0.5
+color = Color(0.454902, 0.894118, 1, 1)
+effect = SubResource("Effect")

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ability_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/ability_effect_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Effect"]
+script = ExtResource("2")
+kind = "area"
+damage = 54.0
+range = 132.0
+speed = 250.0
+
+[resource]
+script = ExtResource("1")
+id = &"ability.swordsman.spin"
+display_name = "회전베기"
+description = "주변 모든 적을 밀쳐냅니다."
+cooldown = 4.5
+color = Color(0.937255, 0.4, 0.364706, 1)
+effect = SubResource("Effect")

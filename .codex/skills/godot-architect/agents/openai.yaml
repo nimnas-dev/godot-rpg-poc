@@ -1,0 +1,4 @@
+interface:
+  display_name: "Godot Architect"
+  short_description: "Design maintainable and efficient Godot project architecture"
+  default_prompt: "Use $godot-architect to design or refactor the Godot project architecture."

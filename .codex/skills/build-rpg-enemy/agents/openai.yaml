@@ -1,0 +1,4 @@
+interface:
+  display_name: "RPG Enemy Builder"
+  short_description: "Create readable distinct and entertaining enemies and encounters"
+  default_prompt: "Use $build-rpg-enemy to design and implement engaging RPG enemies."

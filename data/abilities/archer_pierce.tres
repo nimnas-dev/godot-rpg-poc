@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ability_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/ability_effect_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Effect"]
+script = ExtResource("2")
+kind = "line_projectile"
+damage = 76.0
+range = 1.8
+radius = 9.0
+speed = 870.0
+pierce = 4
+
+[resource]
+script = ExtResource("1")
+id = &"ability.archer.pierce"
+display_name = "관통 화살"
+description = "여러 적을 관통하는 강한 화살을 발사합니다."
+cooldown = 5.8
+color = Color(0.956863, 1, 0.67451, 1)
+effect = SubResource("Effect")

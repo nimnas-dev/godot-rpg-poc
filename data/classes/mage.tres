@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CharacterClassDefinition" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/character_class_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://data/abilities/mage_basic.tres" id="2"]
+[ext_resource type="Resource" path="res://data/abilities/mage_frost.tres" id="3"]
+[ext_resource type="Resource" path="res://data/abilities/mage_stars.tres" id="4"]
+[ext_resource type="Resource" path="res://data/abilities/mage_blink.tres" id="5"]
+
+[resource]
+script = ExtResource("1")
+id = &"class.mage"
+display_name = "마법사"
+title = "별빛의 현자"
+body_color = Color(0.482353, 0.494118, 0.909804, 1)
+accent_color = Color(0.454902, 0.894118, 1, 1)
+move_speed = 225.0
+max_health = 90.0
+power = 1.18
+health_per_level = 7.0
+actions = [ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("5")]

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ability_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/ability_effect_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Effect"]
+script = ExtResource("2")
+kind = "teleport"
+range = 240.0
+radius = 72.0
+duration = 0.55
+
+[resource]
+script = ExtResource("1")
+id = &"ability.mage.blink"
+display_name = "순간이동"
+description = "전방으로 순간이동하며 잠시 무적이 됩니다."
+cooldown = 8.0
+color = Color(0.454902, 0.894118, 1, 1)
+effect = SubResource("Effect")

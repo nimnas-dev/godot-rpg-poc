@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CharacterClassDefinition" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/character_class_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://data/abilities/archer_basic.tres" id="2"]
+[ext_resource type="Resource" path="res://data/abilities/archer_spread.tres" id="3"]
+[ext_resource type="Resource" path="res://data/abilities/archer_pierce.tres" id="4"]
+[ext_resource type="Resource" path="res://data/abilities/archer_rain.tres" id="5"]
+
+[resource]
+script = ExtResource("1")
+id = &"class.archer"
+display_name = "궁수"
+title = "바람의 추적자"
+body_color = Color(0.34902, 0.788235, 0.541176, 1)
+accent_color = Color(0.85098, 0.94902, 0.486275, 1)
+move_speed = 275.0
+max_health = 105.0
+power = 0.92
+health_per_level = 7.0
+actions = [ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("5")]

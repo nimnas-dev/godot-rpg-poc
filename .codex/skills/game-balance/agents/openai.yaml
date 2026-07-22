@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Balance Designer"
+  short_description: "Model tune and validate combat progression and economy balance"
+  default_prompt: "Use $game-balance to analyze and tune the game balance model."

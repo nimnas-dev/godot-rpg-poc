@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ability_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/ability_effect_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Effect"]
+script = ExtResource("2")
+kind = "spread"
+damage = 24.0
+range = 1.8
+radius = 5.5
+speed = 650.0
+projectile_count = 5
+
+[resource]
+script = ExtResource("1")
+id = &"ability.archer.spread"
+display_name = "부채꼴 사격"
+description = "다섯 방향으로 화살을 발사합니다."
+cooldown = 4.0
+color = Color(0.34902, 0.788235, 0.541176, 1)
+effect = SubResource("Effect")

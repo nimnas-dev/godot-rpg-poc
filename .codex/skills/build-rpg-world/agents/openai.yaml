@@ -1,0 +1,4 @@
+interface:
+  display_name: "RPG World Builder"
+  short_description: "Build explorable readable and rewarding RPG worlds in Godot"
+  default_prompt: "Use $build-rpg-world to design and implement an engaging RPG world."

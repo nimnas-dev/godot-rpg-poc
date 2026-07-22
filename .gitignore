@@ -1,0 +1,7 @@
+.godot/
+build/
+.DS_Store
+*.apk
+*.aab
+*.ipa
+*.pck

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Feel Designer"
+  short_description: "Improve responsiveness impact feedback and moment-to-moment feel"
+  default_prompt: "Use $game-feel to audit and improve the feel of this gameplay interaction."

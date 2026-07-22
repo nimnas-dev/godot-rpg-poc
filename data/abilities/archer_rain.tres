@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ability_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/ability_effect_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Effect"]
+script = ExtResource("2")
+kind = "target_area"
+damage = 68.0
+range = 480.0
+radius = 150.0
+speed = 80.0
+
+[resource]
+script = ExtResource("1")
+id = &"ability.archer.rain"
+display_name = "화살비"
+description = "목표 지점 넓은 범위에 화살비를 내립니다."
+cooldown = 9.5
+color = Color(0.788235, 0.941176, 0.501961, 1)
+effect = SubResource("Effect")

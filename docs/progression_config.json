@@ -1,0 +1,24 @@
+{
+  "levels": 20,
+  "seed": 94721,
+  "player": {
+    "health_base": 150.0,
+    "health_growth": 1.044,
+    "damage_base": 34.0,
+    "damage_growth": 1.08,
+    "attacks_per_second": 2.38,
+    "accuracy": 1.0,
+    "crit_chance": 0.0,
+    "crit_multiplier": 1.0
+  },
+  "enemy": {
+    "health_base": 51.0,
+    "health_growth": 1.069,
+    "damage_base": 7.65,
+    "damage_growth": 1.052,
+    "attacks_per_second": 0.8,
+    "accuracy": 0.65,
+    "crit_chance": 0.0,
+    "crit_multiplier": 1.0
+  }
+}

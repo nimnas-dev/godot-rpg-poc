@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/upgrade_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"upgrade.mage.constellation"
+class_id = &"class.mage"
+display_name = "별자리"
+description = "중첩마다 60% 피해의 대칭 투사체 한 쌍을 추가합니다."
+max_stacks = 3
+effect_key = "constellation"
