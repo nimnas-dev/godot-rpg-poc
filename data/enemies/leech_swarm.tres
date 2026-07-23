@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+anticipation = 0.28
+active_duration = 0.14
+recovery = 0.58
+attack_range = 62.0
+hit_radius = 32.0
+charge_distance = 45.0
+charge_width = 34.0
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.leech_swarm"
+display_name = "피거머리 떼"
+region_id = &"region.bloodwater_bog"
+role = "swarmer"
+movement_mode = "pursue"
+counterplay = "낮은 체력의 군집이 붙기 전에 이동하며 범위 공격으로 빠르게 정리한다."
+body_color = Color(0.5, 0.12, 0.16, 1)
+accent_color = Color(0.85, 0.32, 0.28, 1)
+base_health = 35.0
+health_per_wave = 5.0
+move_speed = 116.0
+base_damage = 5.0
+damage_per_wave = 0.5
+experience_value = 15
+threat_cost = 0.75
+attack = SubResource("Attack")

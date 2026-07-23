@@ -17,6 +17,7 @@ script = ExtResource("1")
 id = &"ability.mage.bolt"
 display_name = "마력탄"
 description = "적을 관통하는 마력탄을 발사합니다."
+tags = Array[StringName]([&"arcane"])
 cooldown = 0.5
 color = Color(0.454902, 0.894118, 1, 1)
 effect = SubResource("Effect")

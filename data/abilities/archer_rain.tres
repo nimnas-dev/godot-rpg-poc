@@ -16,6 +16,7 @@ script = ExtResource("1")
 id = &"ability.archer.rain"
 display_name = "화살비"
 description = "목표 지점 넓은 범위에 화살비를 내립니다."
+tags = Array[StringName]([&"storm"])
 cooldown = 9.5
 color = Color(0.788235, 0.941176, 0.501961, 1)
 effect = SubResource("Effect")

@@ -3,6 +3,10 @@ extends CharacterBody2D
 
 signal defeated(enemy: EnemyActor, experience_value: int, enemy_position: Vector2)
 signal projectile_requested(origin: Vector2, direction: Vector2, spec: Dictionary)
+## RunWorld can subscribe when persistent zones and spawned minions are added.
+## The enemy owns the timing; the world owns resulting node lifetimes.
+signal special_attack_requested(enemy: EnemyActor, attack: EnemyAttackDefinition, origin: Vector2, direction: Vector2)
+signal boss_phase_changed(enemy: EnemyActor, phase: int)
 
 enum State {
 	SPAWN_GRACE,
@@ -21,6 +25,8 @@ var max_health := 50.0
 var health := 50.0
 var contact_damage := 8.0
 var dead := false
+var boss_phase := 1
+var telegraph_duration_multiplier := 1.0
 
 var _state: int = State.SPAWN_GRACE
 var _state_clock := 1.0
@@ -37,14 +43,26 @@ var _slow_clock := 0.0
 @onready var _screen_notifier: VisibleOnScreenNotifier2D = %ScreenNotifier
 
 
-func setup(enemy_definition: EnemyDefinition, wave: int, new_target: PlayerActor, encounter: EncounterDirector, combat_registry: CombatRegistry, spawn_grace: float = 1.0) -> void:
+func setup(
+	enemy_definition: EnemyDefinition,
+	wave: int,
+	new_target: PlayerActor,
+	encounter: EncounterDirector,
+	combat_registry: CombatRegistry,
+	spawn_grace: float = 1.0,
+	health_multiplier: float = 1.0,
+	damage_multiplier: float = 1.0,
+	new_telegraph_duration_multiplier: float = 1.0
+) -> void:
 	definition = enemy_definition
 	target = new_target
 	director = encounter
 	registry = combat_registry
-	max_health = definition.health_for_wave(wave)
+	max_health = definition.health_for_wave(wave) * health_multiplier
 	health = max_health
-	contact_damage = definition.damage_for_wave(wave)
+	contact_damage = definition.damage_for_wave(wave) * damage_multiplier
+	telegraph_duration_multiplier = maxf(0.25, new_telegraph_duration_multiplier)
+	boss_phase = 1
 	_state = State.SPAWN_GRACE
 	_state_clock = spawn_grace
 	_state_elapsed = 0.0
@@ -92,19 +110,50 @@ func _physics_process(delta: float) -> void:
 func _process_approach() -> void:
 	var offset := target.global_position - global_position
 	var distance := offset.length()
-	var desired := Vector2.ZERO
-	if definition.role == "ranged":
-		if distance < definition.preferred_min_distance:
-			desired = -offset.normalized() * definition.move_speed
-		elif distance > definition.preferred_max_distance:
-			desired = offset.normalized() * definition.move_speed
-	else:
-		desired = offset.normalized() * definition.move_speed
+	if definition.has_frontal_guard and not offset.is_zero_approx():
+		var next_facing := offset.normalized()
+		if next_facing.dot(_attack_direction) < 0.985:
+			_attack_direction = next_facing
+			queue_redraw()
+	var desired := _desired_velocity(offset, distance) * _boss_speed_multiplier()
 	velocity = desired * _slow_multiplier + _knockback
-	if distance <= definition.attack.attack_range and director.request_attack_token(self, definition.attack.ranged):
+	if distance > definition.attack.attack_range:
+		return
+	if not definition.attack.allow_offscreen and not is_on_screen():
+		return
+	var token_granted := not definition.attack.requires_attack_token
+	if definition.attack.requires_attack_token:
+		token_granted = director.request_attack_token(self, definition.attack.uses_ranged_token())
+	if token_granted:
 		_has_attack_token = true
 		_attack_direction = offset.normalized()
 		_enter_state(State.ANTICIPATION)
+
+
+func _desired_velocity(offset: Vector2, distance: float) -> Vector2:
+	if offset.is_zero_approx():
+		return Vector2.ZERO
+	var direction := offset.normalized()
+	match definition.movement_mode:
+		"hold_range":
+			if distance < definition.preferred_min_distance:
+				return -direction * definition.move_speed
+			if distance > definition.preferred_max_distance:
+				return direction * definition.move_speed
+			return Vector2.ZERO
+		"orbit":
+			var tangent := direction.rotated(PI * 0.5)
+			if distance < definition.preferred_min_distance:
+				return (-direction + tangent * 0.55).normalized() * definition.move_speed
+			if distance > definition.preferred_max_distance:
+				return (direction + tangent * 0.42).normalized() * definition.move_speed
+			return tangent * definition.move_speed * 0.62
+		"flank":
+			return (direction + direction.rotated(PI * 0.5) * 0.7).normalized() * definition.move_speed
+		"anchor":
+			return direction * definition.move_speed if distance > definition.attack.attack_range * 0.82 else Vector2.ZERO
+		_:
+			return direction * definition.move_speed
 
 
 func _process_anticipation() -> void:
@@ -120,26 +169,35 @@ func _process_anticipation() -> void:
 
 
 func _process_active() -> void:
-	if definition.attack.ranged:
+	var attack := definition.attack
+	if attack.ranged or attack.delivery == "projectile" or attack.delivery == "zone" or attack.delivery == "control" or attack.delivery == "summon":
 		velocity = _knockback
 		if not _attack_hit:
 			_attack_hit = true
 			projectile_requested.emit(global_position + _attack_direction * 24.0, _attack_direction, {
 				"team": "enemy",
 				"damage": contact_damage,
-				"speed": definition.attack.projectile_speed,
+				"speed": attack.projectile_speed,
 				"color": definition.accent_color,
-				"radius": definition.attack.hit_radius,
+				"radius": attack.hit_radius,
 				"pierce": 0,
-				"lifetime": 2.2,
+				"lifetime": maxf(1.2, attack.persistent_duration + 0.9),
 			})
+			if not attack.ranged and attack.delivery != "projectile":
+				special_attack_requested.emit(self, attack, global_position, _attack_direction)
+	elif attack.delivery == "support":
+		velocity = _knockback
+		if not _attack_hit:
+			_attack_hit = true
+			_heal_nearby_ally(attack.special_radius, attack.special_power)
+			special_attack_requested.emit(self, attack, global_position, _attack_direction)
 	else:
-		var speed := definition.attack.charge_distance / maxf(0.01, definition.attack.active_duration)
+		var speed := attack.charge_distance / maxf(0.01, attack.active_duration)
 		velocity = _attack_direction * speed * _slow_multiplier + _knockback
 		if not _attack_hit:
 			var projected_end := global_position + _attack_direction * speed * get_physics_process_delta_time()
 			var closest := Geometry2D.get_closest_point_to_segment(target.global_position, global_position, projected_end)
-			if closest.distance_to(target.global_position) <= definition.attack.charge_width:
+			if closest.distance_to(target.global_position) <= attack.charge_width:
 				_attack_hit = target.apply_damage(contact_damage)
 	if _state_clock <= 0.0:
 		_enter_state(State.RECOVERY)
@@ -152,15 +210,15 @@ func _enter_state(next_state: int) -> void:
 		State.APPROACH:
 			_state_clock = 0.0
 		State.ANTICIPATION:
-			_state_clock = definition.attack.anticipation
+			_state_clock = definition.attack.anticipation * telegraph_duration_multiplier / _boss_speed_multiplier()
 			_attack_origin = global_position
 			_attack_hit = false
 		State.ACTIVE:
-			_state_clock = definition.attack.active_duration
+			_state_clock = definition.attack.active_duration / _boss_speed_multiplier()
 			_attack_origin = global_position
 			_attack_hit = false
 		State.RECOVERY:
-			_state_clock = definition.attack.recovery
+			_state_clock = definition.attack.recovery / _boss_speed_multiplier()
 		State.DEAD:
 			_state_clock = 0.0
 	queue_redraw()
@@ -169,7 +227,10 @@ func _enter_state(next_state: int) -> void:
 func take_damage(amount: float, push_direction: Vector2 = Vector2.ZERO, push_force: float = 0.0) -> void:
 	if dead:
 		return
+	if definition != null and definition.has_frontal_guard and not push_direction.is_zero_approx() and push_direction.normalized().dot(_attack_direction) <= definition.frontal_guard_dot:
+		amount *= definition.frontal_damage_multiplier
 	health -= amount
+	_update_boss_phase()
 	_hit_flash = 0.11
 	if not push_direction.is_zero_approx():
 		_knockback += push_direction.normalized() * push_force
@@ -182,9 +243,54 @@ func take_damage(amount: float, push_direction: Vector2 = Vector2.ZERO, push_for
 		_die()
 
 
+func _update_boss_phase() -> void:
+	if definition == null or not definition.is_boss or definition.boss_phase_count <= 1 or max_health <= 0.0:
+		return
+	var progress := clampf(1.0 - health / max_health, 0.0, 0.999)
+	var next_phase := mini(definition.boss_phase_count, 1 + int(floor(progress * definition.boss_phase_count)))
+	if next_phase <= boss_phase:
+		return
+	boss_phase = next_phase
+	contact_damage *= 1.0 + definition.boss_damage_per_phase
+	_release_token()
+	_enter_state(State.RECOVERY)
+	_state_clock = 0.7
+	boss_phase_changed.emit(self, boss_phase)
+	queue_redraw()
+
+
+func _boss_speed_multiplier() -> float:
+	if definition == null or not definition.is_boss:
+		return 1.0
+	return 1.0 + definition.boss_speed_per_phase * float(boss_phase - 1)
+
+
 func apply_slow(amount: float, duration: float) -> void:
 	_slow_multiplier = minf(_slow_multiplier, clampf(1.0 - amount, 0.35, 1.0))
 	_slow_clock = maxf(_slow_clock, duration)
+
+
+func heal(amount: float) -> void:
+	if dead or amount <= 0.0:
+		return
+	health = minf(max_health, health + amount)
+	queue_redraw()
+
+
+func _heal_nearby_ally(radius: float, amount: float) -> void:
+	if registry == null:
+		return
+	var chosen: EnemyActor
+	var lowest_ratio := 1.0
+	for candidate in registry.query_circle(global_position, radius):
+		var ally := candidate as EnemyActor
+		if ally != null and not ally.dead and ally.max_health > 0.0:
+			var ratio: float = ally.health / ally.max_health
+			if ratio < lowest_ratio:
+				lowest_ratio = ratio
+				chosen = ally
+	if chosen != null:
+		chosen.heal(amount)
 
 
 func cancel_attack() -> void:
@@ -241,10 +347,7 @@ func _draw() -> void:
 			draw_circle(Vector2(-7, -11), 3.0, definition.accent_color)
 			draw_circle(Vector2(7, -11), 3.0, definition.accent_color)
 		_:
-			draw_circle(Vector2.ZERO, 21.0, color)
-			draw_circle(Vector2(0, -7), 17.0, definition.accent_color)
-			draw_circle(Vector2(-6, -6), 2.5, Color("#16211e"))
-			draw_circle(Vector2(6, -6), 2.5, Color("#16211e"))
+			_draw_role_silhouette(color)
 	if _state == State.SPAWN_GRACE:
 		draw_arc(Vector2.ZERO, 28.0, 0.0, TAU, 32, Color(definition.accent_color, 0.65), 3.0)
 	elif _state == State.ANTICIPATION:
@@ -254,3 +357,33 @@ func _draw() -> void:
 	if health < max_health and not dead:
 		draw_rect(Rect2(-23, -34, 46, 5), Color("#261f28"), true)
 		draw_rect(Rect2(-23, -34, 46 * maxf(0.0, health / max_health), 5), Color("#ef5b66"), true)
+	if definition.is_boss:
+		draw_arc(Vector2.ZERO, 34.0, 0.0, TAU, 40, Color(definition.accent_color, 0.75), 4.0 + boss_phase)
+
+
+func _draw_role_silhouette(color: Color) -> void:
+	match definition.role:
+		"anchor":
+			draw_circle(Vector2.ZERO, 24.0, color)
+			var facing_angle := _attack_direction.angle()
+			draw_arc(Vector2.ZERO, 27.0, facing_angle - 2.2, facing_angle + 2.2, 16, definition.accent_color, 7.0)
+		"support", "summoner":
+			draw_circle(Vector2.ZERO, 19.0, color)
+			draw_circle(Vector2(0, -5), 11.0, definition.accent_color, false, 4.0)
+			draw_line(Vector2(-16, 14), Vector2(16, 14), definition.accent_color, 4.0)
+		"artillery", "jailer":
+			draw_rect(Rect2(-20, -20, 40, 40), color, true)
+			draw_rect(Rect2(-12, -12, 24, 24), definition.accent_color, false, 4.0)
+		"swarmer":
+			draw_circle(Vector2.ZERO, 15.0, color)
+			draw_circle(Vector2(-12, 5), 8.0, definition.accent_color)
+			draw_circle(Vector2(12, 5), 8.0, definition.accent_color)
+		"flanker":
+			var blade := PackedVector2Array([Vector2(0, -27), Vector2(19, 15), Vector2(0, 25), Vector2(-19, 15)])
+			draw_colored_polygon(blade, color)
+			draw_line(Vector2(0, -20), Vector2(0, 19), definition.accent_color, 4.0)
+		_:
+			draw_circle(Vector2.ZERO, 21.0, color)
+			draw_circle(Vector2(0, -7), 17.0, definition.accent_color)
+			draw_circle(Vector2(-6, -6), 2.5, Color("#16211e"))
+			draw_circle(Vector2(6, -6), 2.5, Color("#16211e"))

@@ -17,6 +17,7 @@ script = ExtResource("1")
 id = &"ability.archer.spread"
 display_name = "부채꼴 사격"
 description = "다섯 방향으로 화살을 발사합니다."
+tags = Array[StringName]([&"volley"])
 cooldown = 4.0
 color = Color(0.34902, 0.788235, 0.541176, 1)
 effect = SubResource("Effect")

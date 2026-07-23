@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+delivery = "zone"
+target_kind = "area"
+anticipation = 1.0
+active_duration = 0.08
+recovery = 1.1
+attack_range = 430.0
+hit_radius = 23.0
+projectile_speed = 205.0
+direction_lock_time = 0.62
+special_radius = 92.0
+special_power = 1.0
+persistent_duration = 1.8
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.bell_artillery"
+display_name = "종탑 포격수"
+region_id = &"region.ossuary_monastery"
+role = "artillery"
+movement_mode = "hold_range"
+counterplay = "큰 종소리와 직선 조준을 보고 안전 지대로 이동하거나, 느린 포격수를 먼저 압박한다."
+body_color = Color(0.43, 0.36, 0.29, 1)
+accent_color = Color(0.95, 0.57, 0.29, 1)
+base_health = 92.0
+health_per_wave = 11.0
+move_speed = 50.0
+base_damage = 18.0
+damage_per_wave = 1.05
+experience_value = 48
+preferred_min_distance = 260.0
+preferred_max_distance = 410.0
+threat_cost = 2.6
+attack = SubResource("Attack")

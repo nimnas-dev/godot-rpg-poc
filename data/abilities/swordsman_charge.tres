@@ -16,6 +16,7 @@ script = ExtResource("1")
 id = &"ability.swordsman.charge"
 display_name = "돌진"
 description = "전방으로 돌진하며 경로의 적을 공격합니다."
+tags = Array[StringName]([&"charge"])
 cooldown = 5.5
 color = Color(1, 0.819608, 0.478431, 1)
 effect = SubResource("Effect")

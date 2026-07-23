@@ -16,6 +16,7 @@ script = ExtResource("1")
 id = &"ability.archer.shot"
 display_name = "사격"
 description = "가장 가까운 적을 향해 화살을 발사합니다."
+tags = Array[StringName]([&"precision"])
 cooldown = 0.32
 color = Color(0.85098, 0.94902, 0.486275, 1)
 effect = SubResource("Effect")

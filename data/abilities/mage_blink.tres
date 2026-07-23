@@ -15,6 +15,7 @@ script = ExtResource("1")
 id = &"ability.mage.blink"
 display_name = "순간이동"
 description = "전방으로 순간이동하며 잠시 무적이 됩니다."
+tags = Array[StringName]([&"blink"])
 cooldown = 8.0
 color = Color(0.454902, 0.894118, 1, 1)
 effect = SubResource("Effect")

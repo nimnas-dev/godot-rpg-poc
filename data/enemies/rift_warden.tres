@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+delivery = "dash"
+anticipation = 0.78
+active_duration = 0.32
+recovery = 1.05
+attack_range = 150.0
+hit_radius = 44.0
+charge_distance = 190.0
+charge_width = 46.0
+direction_lock_time = 0.42
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.rift_warden"
+display_name = "균열 감시자"
+region_id = &"region.hollow_grove"
+role = "charger"
+movement_mode = "pursue"
+counterplay = "돌진 방향이 잠긴 뒤 측면으로 피하고 긴 회복 시간에 공격한다."
+body_color = Color(0.22, 0.32, 0.28, 1)
+accent_color = Color(0.45, 0.95, 0.77, 1)
+base_health = 980.0
+health_per_wave = 36.0
+move_speed = 76.0
+base_damage = 18.0
+damage_per_wave = 1.05
+experience_value = 260
+threat_cost = 12.0
+is_boss = true
+boss_phase_count = 2
+attack = SubResource("Attack")

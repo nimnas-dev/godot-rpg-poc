@@ -5,6 +5,8 @@ signal class_selected(class_id: StringName)
 signal continue_requested
 signal new_game_requested
 signal action_requested(slot: int)
+signal action_aim_requested(slot: int, direction: Vector2)
+signal choice_selected(choice_id: StringName, mode: StringName)
 signal pause_requested
 signal resume_requested
 signal restart_requested
@@ -21,6 +23,7 @@ signal quit_requested
 @onready var _gameplay: Control = %Gameplay
 @onready var _pause_overlay: Control = %PauseOverlay
 @onready var _level_up_overlay: Control = %LevelUpOverlay
+@onready var _choice_overlay: Control = %ChoiceOverlay
 @onready var _game_over_overlay: Control = %GameOverOverlay
 @onready var _quit_confirm_overlay: Control = %QuitConfirmOverlay
 @onready var _joystick: ArcaneVirtualJoystick = %VirtualJoystick
@@ -31,11 +34,15 @@ signal quit_requested
 @onready var _class_label: Label = %ClassLabel
 @onready var _wave_label: Label = %WaveLabel
 @onready var _enemy_label: Label = %EnemyLabel
+@onready var _objective_label: Label = %ObjectiveLabel
+@onready var _mastery_bar: ProgressBar = %MasteryBar
+@onready var _mastery_label: Label = %MasteryLabel
 @onready var _banner_title: Label = %BannerTitle
 @onready var _banner_subtitle: Label = %BannerSubtitle
 @onready var _banner: Control = %Banner
 @onready var _game_over_result: Label = %GameOverResult
 @onready var _upgrade_buttons: Array[Button] = [%Upgrade1, %Upgrade2, %Upgrade3]
+@onready var _choice_buttons: Array[Button] = [%Choice1, %Choice2, %Choice3]
 @onready var _action_buttons: Array[Button] = [%Action0, %Action1, %Action2, %Action3]
 @onready var _sfx_slider: HSlider = %SFXSlider
 @onready var _shake_toggle: CheckButton = %ShakeToggle
@@ -43,6 +50,7 @@ signal quit_requested
 @onready var _haptics_toggle: CheckButton = %HapticsToggle
 @onready var _effects_option: OptionButton = %EffectsOption
 @onready var _class_buttons: Array[Button] = [%SwordsmanButton, %ArcherButton, %MageButton]
+@onready var _difficulty_option: OptionButton = %DifficultyOption
 @onready var _selection_content: Control = $Root/SafeRoot/SelectionOverlay/Content
 @onready var _level_content: Control = $Root/SafeRoot/LevelUpOverlay/Content
 @onready var _pause_content: Control = $Root/SafeRoot/PauseOverlay/Content
@@ -52,6 +60,9 @@ signal quit_requested
 
 var _action_names: Array[String] = ["공격", "스킬 1", "스킬 2", "스킬 3"]
 var _upgrade_ids: Array[StringName] = []
+var _choice_ids: Array[StringName] = []
+var _choice_mode: StringName
+var _action_gestures: Dictionary = {}
 var _banner_tween: Tween
 var _applying_settings := false
 
@@ -72,9 +83,11 @@ func _ready() -> void:
 	%QuitCancelButton.pressed.connect(_hide_quit_confirmation)
 	%QuitConfirmButton.pressed.connect(quit_requested.emit)
 	for index in range(_action_buttons.size()):
-		_action_buttons[index].button_down.connect(action_requested.emit.bind(index))
+		_action_buttons[index].gui_input.connect(_on_action_gui_input.bind(index))
 	for index in range(_upgrade_buttons.size()):
 		_upgrade_buttons[index].pressed.connect(_on_upgrade_pressed.bind(index))
+	for index in range(_choice_buttons.size()):
+		_choice_buttons[index].pressed.connect(_on_choice_pressed.bind(index))
 	_sfx_slider.value_changed.connect(_on_settings_control_changed.unbind(1))
 	_shake_toggle.toggled.connect(_on_settings_control_changed.unbind(1))
 	_motion_toggle.toggled.connect(_on_settings_control_changed.unbind(1))
@@ -112,6 +125,16 @@ func begin_game(class_definition: CharacterClassDefinition) -> void:
 	reset_input()
 
 
+func get_selected_difficulty_id() -> StringName:
+	match _difficulty_option.selected:
+		0:
+			return &"difficulty.pioneer"
+		2:
+			return &"difficulty.nightmare"
+		_:
+			return &"difficulty.hunter"
+
+
 func show_playing() -> void:
 	_show_only(_gameplay)
 
@@ -121,6 +144,7 @@ func show_pause() -> void:
 	_pause_overlay.visible = true
 	_level_up_overlay.visible = false
 	_game_over_overlay.visible = false
+	_choice_overlay.visible = false
 	reset_input()
 
 
@@ -128,6 +152,7 @@ func show_level_up(choices: Array[UpgradeDefinition]) -> void:
 	_gameplay.visible = true
 	_level_up_overlay.visible = true
 	_pause_overlay.visible = false
+	_choice_overlay.visible = false
 	_game_over_overlay.visible = false
 	_upgrade_ids.clear()
 	for index in range(_upgrade_buttons.size()):
@@ -144,10 +169,36 @@ func show_level_up(choices: Array[UpgradeDefinition]) -> void:
 	reset_input()
 
 
+func show_choice(title: String, subtitle: String, choices: Array[Dictionary], mode: StringName) -> void:
+	_gameplay.visible = true
+	_choice_overlay.visible = true
+	_pause_overlay.visible = false
+	_level_up_overlay.visible = false
+	_game_over_overlay.visible = false
+	%ChoiceTitle.text = title
+	%ChoiceSubtitle.text = subtitle
+	_choice_mode = mode
+	_choice_ids.clear()
+	for index in range(_choice_buttons.size()):
+		var button := _choice_buttons[index]
+		if index < choices.size():
+			var choice: Dictionary = choices[index]
+			_choice_ids.append(StringName(choice.get("id", "")))
+			button.text = "%s\n\n%s" % [str(choice.get("title", "선택")), str(choice.get("description", ""))]
+			button.disabled = false
+			button.visible = true
+		else:
+			_choice_ids.append(&"")
+			button.disabled = true
+			button.visible = false
+	reset_input()
+
+
 func show_game_over(reached_wave: int, level: int, best_cleared_wave: int) -> void:
 	_gameplay.visible = true
 	_pause_overlay.visible = false
 	_level_up_overlay.visible = false
+	_choice_overlay.visible = false
 	_game_over_overlay.visible = true
 	_game_over_result.text = "도달 웨이브 %d · 최종 레벨 %d\n최고 클리어 웨이브 %d" % [reached_wave, level, best_cleared_wave]
 	reset_input()
@@ -160,6 +211,7 @@ func get_move_vector() -> Vector2:
 func reset_input() -> void:
 	if is_instance_valid(_joystick):
 		_joystick.reset_input()
+	_action_gestures.clear()
 
 
 func update_health(current: float, maximum: float) -> void:
@@ -180,6 +232,27 @@ func update_wave(value: int) -> void:
 
 func update_enemy_count(value: int) -> void:
 	_enemy_label.text = "남은 적 %d" % maxi(0, value)
+
+
+func update_run_context(context: Dictionary) -> void:
+	var depth := int(context.get("depth", 1))
+	var depth_text := "보스" if depth == 5 else "%d/5" % depth
+	_wave_label.text = "%s · 구역 %s" % [str(context.get("region_name", "변경")), depth_text]
+	_enemy_label.tooltip_text = "%s · 확보 %d / 미확보 %d 인장" % [
+		str(context.get("difficulty_name", "사냥꾼")),
+		int(context.get("banked_sigils", 0)),
+		int(context.get("unbanked_sigils", 0)),
+	]
+
+
+func update_mastery(current: float, maximum: float, segments: int) -> void:
+	_mastery_bar.max_value = maximum
+	_mastery_bar.value = current
+	_mastery_label.text = "숙련 %d%% · %d" % [roundi(current / maxf(1.0, maximum) * 100.0), segments]
+
+
+func update_objective(title: String, current: float, target: float, completed: bool) -> void:
+	_objective_label.text = "%s · %s" % [title, "완료" if completed else "%d / %d" % [floori(current), ceili(target)]]
 
 
 func update_cooldowns(values: Array[float], maximums: Array[float]) -> void:
@@ -231,6 +304,8 @@ func request_back_action() -> bool:
 		return true
 	if _level_up_overlay.visible:
 		return true
+	if _choice_overlay.visible:
+		return true
 	if _game_over_overlay.visible:
 		_show_quit_confirmation()
 		return true
@@ -247,6 +322,7 @@ func _show_only(primary: Control) -> void:
 	_gameplay.visible = primary == _gameplay
 	_pause_overlay.visible = false
 	_level_up_overlay.visible = false
+	_choice_overlay.visible = false
 	_game_over_overlay.visible = false
 	_quit_confirm_overlay.visible = false
 
@@ -254,6 +330,43 @@ func _show_only(primary: Control) -> void:
 func _on_upgrade_pressed(index: int) -> void:
 	if index < _upgrade_ids.size() and not _upgrade_ids[index].is_empty():
 		upgrade_selected.emit(_upgrade_ids[index])
+
+
+func _on_choice_pressed(index: int) -> void:
+	if index < _choice_ids.size() and not _choice_ids[index].is_empty():
+		choice_selected.emit(_choice_ids[index], _choice_mode)
+
+
+func _on_action_gui_input(event: InputEvent, slot: int) -> void:
+	var pointer_id := -1
+	var pressed := false
+	var released := false
+	var position := Vector2.ZERO
+	if event is InputEventScreenTouch:
+		pointer_id = event.index
+		pressed = event.pressed
+		released = not event.pressed
+		position = event.position
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		pressed = event.pressed
+		released = not event.pressed
+		position = event.position
+	else:
+		return
+	if pressed:
+		_action_gestures[pointer_id] = {"slot": slot, "start": position}
+		return
+	if not released or not _action_gestures.has(pointer_id):
+		return
+	var gesture: Dictionary = _action_gestures[pointer_id]
+	_action_gestures.erase(pointer_id)
+	if int(gesture.get("slot", -1)) != slot:
+		return
+	var direction: Vector2 = position - Vector2(gesture.get("start", position))
+	if direction.length() >= 18.0:
+		action_aim_requested.emit(slot, direction.normalized())
+	else:
+		action_requested.emit(slot)
 
 
 func _on_settings_control_changed() -> void:

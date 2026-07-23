@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+delivery = "projectile"
+anticipation = 0.84
+active_duration = 0.08
+recovery = 0.92
+attack_range = 500.0
+hit_radius = 17.0
+projectile_speed = 460.0
+direction_lock_time = 0.54
+ranged = true
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.glass_huntsman"
+display_name = "유리 사냥꾼"
+region_id = &"region.frozen_sanatorium"
+role = "ranged"
+movement_mode = "orbit"
+counterplay = "거울 조준선이 잠긴 뒤 방향을 바꾸고 파편 사이의 접근 경로를 이용한다."
+body_color = Color(0.34, 0.48, 0.58, 1)
+accent_color = Color(0.7, 0.94, 1, 1)
+base_health = 1240.0
+health_per_wave = 46.0
+move_speed = 88.0
+base_damage = 24.0
+damage_per_wave = 1.2
+experience_value = 410
+preferred_min_distance = 240.0
+preferred_max_distance = 440.0
+threat_cost = 12.0
+is_boss = true
+boss_phase_count = 2
+attack = SubResource("Attack")

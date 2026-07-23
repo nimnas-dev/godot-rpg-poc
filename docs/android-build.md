@@ -10,7 +10,7 @@
 - Android: min SDK 24, target/compile SDK 36
 - Distribution: 직접 설치하는 개발·QA 빌드
 
-Godot 4.3에서 4.7.1로 이관할 때 renderer와 저장 schema v1은 유지했습니다. 4.7에서 달라진 stretch 기본값의 영향을 막기 위해 aspect는 `keep`으로 명시했습니다. 이 문서의 debug APK와 별개로 Play Store 제출에는 release keystore, AAB와 스토어 정책 검증이 필요합니다.
+Godot 4.3에서 4.7.1로 이관했고 현재 런 저장은 schema v2입니다. 4.7에서 달라진 stretch 기본값의 영향을 막기 위해 aspect는 `keep`으로 명시했습니다. 이 문서의 debug APK와 별개로 Play Store 제출에는 release keystore, AAB와 스토어 정책 검증이 필요합니다.
 
 ## 준비
 
@@ -28,13 +28,16 @@ Godot 4.3에서 4.7.1로 이관할 때 renderer와 저장 schema v1은 유지했
 ```bash
 godot --headless --path . --editor --quit
 godot --headless --path . --script res://tests/test_runner.gd
+godot --headless --path . --script res://tests/test_application_flow.gd
+godot --headless --path . --script res://tests/test_gameplay_expansion_flow.gd
+godot --headless --path . --script res://tests/test_platform_services.gd
 godot --headless --path . --quit-after 180
 mkdir -p build/android
 godot --headless --path . \
   --export-debug Android build/android/arcane-frontier.apk
 ```
 
-테스트 성공 조건은 종료 코드뿐 아니라 `PASS: 673 checks`와 `SCRIPT ERROR`, `Parse Error`, `Compile Error` 부재를 함께 확인하는 것입니다.
+테스트 성공 조건은 종료 코드뿐 아니라 각 테스트의 `PASS`와 `SCRIPT ERROR`, `Parse Error`, `Compile Error` 부재를 함께 확인하는 것입니다.
 
 ## Artifact 검사
 
@@ -68,4 +71,4 @@ adb shell monkey -p com.arcane.frontier \
 adb logcat -d -v brief Godot:D AndroidRuntime:E libc:F '*:S'
 ```
 
-시작 화면, 새 게임, 세 직업 선택과 전투 월드 진입을 확인합니다. 실제 기기에서는 조이스틱을 유지한 채 두 번째 손가락으로 스킬을 누르는 경로, 앱 background/foreground 복귀, Android Back, cutout safe area, 진동과 10분 전투의 발열·frame time을 추가 검증합니다.
+시작 화면, 새 게임, 난이도·경로 선택, 세 직업의 전투 월드 진입과 보스 이후 저장을 확인합니다. 실제 기기에서는 조이스틱을 유지한 채 두 번째 손가락으로 스킬을 탭/드래그하는 경로, 앱 background/foreground 복귀, Android Back, cutout safe area, 진동과 10분 전투의 발열·frame time을 추가 검증합니다.
