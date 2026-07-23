@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+delivery = "control"
+target_kind = "area"
+anticipation = 1.05
+active_duration = 0.12
+recovery = 1.0
+attack_range = 430.0
+hit_radius = 28.0
+projectile_speed = 330.0
+direction_lock_time = 0.7
+special_radius = 180.0
+special_power = 0.35
+persistent_duration = 2.6
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.pale_archon"
+display_name = "창백한 집정관"
+region_id = &"region.rift_cathedral"
+role = "jailer"
+movement_mode = "flank"
+counterplay = "세 단계에서 반복되는 방패·소환·봉쇄 규칙을 읽고 안전 지대를 먼저 확보한다."
+body_color = Color(0.48, 0.43, 0.58, 1)
+accent_color = Color(0.98, 0.82, 1, 1)
+base_health = 1720.0
+health_per_wave = 56.0
+move_speed = 72.0
+base_damage = 26.0
+damage_per_wave = 1.25
+experience_value = 520
+preferred_min_distance = 150.0
+preferred_max_distance = 330.0
+threat_cost = 12.0
+is_boss = true
+boss_phase_count = 3
+boss_damage_per_phase = 0.14
+boss_speed_per_phase = 0.1
+attack = SubResource("Attack")

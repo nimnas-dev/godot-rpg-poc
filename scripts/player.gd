@@ -1,11 +1,15 @@
 class_name PlayerActor
 extends CharacterBody2D
 
+const MASTERY_SCRIPT := preload("res://scripts/mastery_controller.gd")
+const MODIFIER_RESOLVER_SCRIPT := preload("res://scripts/modifier_resolver.gd")
+
 signal projectile_requested(origin: Vector2, direction: Vector2, spec: Dictionary)
 signal effect_requested(effect_position: Vector2, effect_type: String, color: Color, radius: float, direction: Vector2)
 signal health_changed(current: float, maximum: float)
 signal cooldowns_changed(values: Array[float], maximums: Array[float])
 signal experience_changed(level_value: int, current: int, required: int)
+signal mastery_changed(current: float, maximum: float, segments: int)
 signal upgrade_choice_queued
 signal audio_cue_requested(cue: StringName)
 signal died
@@ -37,7 +41,10 @@ var hurt_flash := 0.0
 var dead := false
 var walk_time := 0.0
 var active := false
+var mastery
+var modifier_resolver
 var _cooldown_ui_clock := 0.0
+var _guard_perfect_clock := 0.0
 
 
 func _ready() -> void:
@@ -53,6 +60,8 @@ func configure(new_definition: CharacterClassDefinition, combat_registry: Combat
 	experience_to_next = _experience_required(level)
 	upgrade_stacks.clear()
 	pending_upgrade_choices = 0
+	_setup_mastery()
+	modifier_resolver = MODIFIER_RESOLVER_SCRIPT.new()
 	_recalculate_derived_stats()
 	health = max_health
 	reset_transient_state()
@@ -71,8 +80,11 @@ func restore_runtime(checkpoint: Dictionary) -> void:
 	experience_to_next = _experience_required(level)
 	upgrade_stacks = (checkpoint.get("upgrade_stacks", {}) as Dictionary).duplicate(true)
 	pending_upgrade_choices = 0
+	_setup_mastery()
+	modifier_resolver = MODIFIER_RESOLVER_SCRIPT.new()
 	_recalculate_derived_stats()
 	health = clampf(float(checkpoint.get("health", max_health)), 1.0, max_health)
+	mastery.restore_runtime(checkpoint.get("mastery", {}))
 	reset_transient_state()
 	dead = false
 	active = true
@@ -90,6 +102,7 @@ func make_runtime_state() -> Dictionary:
 		"experience": experience,
 		"health": health,
 		"upgrade_stacks": upgrade_stacks.duplicate(true),
+		"mastery": mastery.make_runtime_state() if mastery != null else {},
 	}
 
 
@@ -99,6 +112,21 @@ func get_class_definition() -> CharacterClassDefinition:
 
 func get_cooldown_state() -> Array:
 	return [cooldowns.duplicate(), cooldown_max.duplicate()]
+
+
+func set_run_modifier_sources(sources: Array[ModifierDefinition]) -> void:
+	if modifier_resolver == null:
+		modifier_resolver = MODIFIER_RESOLVER_SCRIPT.new()
+	modifier_resolver.set_sources(sources)
+	_recalculate_derived_stats()
+	_emit_all_state()
+
+
+func restore_health_fraction(fraction: float) -> void:
+	if dead:
+		return
+	health = minf(max_health, health + max_health * clampf(fraction, 0.0, 1.0))
+	health_changed.emit(health, max_health)
 
 
 func _process(delta: float) -> void:
@@ -118,6 +146,9 @@ func _process(delta: float) -> void:
 	invulnerability = maxf(0.0, invulnerability - delta)
 	hurt_flash = maxf(0.0, hurt_flash - delta)
 	guard_clock = maxf(0.0, guard_clock - delta)
+	_guard_perfect_clock = maxf(0.0, _guard_perfect_clock - delta)
+	if mastery != null:
+		mastery.advance(delta)
 	if had_guard and guard_clock <= 0.0:
 		guard_multiplier = 1.0
 	if (had_hurt_flash and hurt_flash <= 0.0) or (had_guard and guard_clock <= 0.0):
@@ -141,34 +172,53 @@ func _physics_process(delta: float) -> void:
 	position.y = clampf(position.y, WORLD_RECT.position.y, WORLD_RECT.end.y)
 
 
-func try_use_ability(slot: int) -> bool:
+func try_use_ability(slot: int, aim_override: Vector2 = Vector2.ZERO) -> bool:
 	if dead or not active or definition == null or slot < 0 or slot >= cooldowns.size() or cooldowns[slot] > 0.0:
 		return false
 	var ability := definition.actions[slot]
 	cooldowns[slot] = cooldown_max[slot]
 	cooldowns_changed.emit(cooldowns.duplicate(), cooldown_max.duplicate())
-	var aim := _get_aim_direction()
-	_execute_ability(ability, aim)
+	var aim := aim_override.normalized() if not aim_override.is_zero_approx() else _get_aim_direction()
+	var mastery_empowered: bool = mastery != null and bool(mastery.consume_for_ability(ability.id, slot))
+	_execute_ability(ability, aim, mastery_empowered)
 	audio_cue_requested.emit(&"attack")
 	return true
 
 
-func _execute_ability(ability: AbilityDefinition, aim: Vector2) -> void:
+func _execute_ability(ability: AbilityDefinition, aim: Vector2, mastery_empowered: bool = false) -> void:
 	var effect := ability.effect
 	if effect == null:
 		return
+	var damage_multiplier: float = 1.0
+	var range_multiplier: float = modifier_resolver.calculate("range", 1.0, ability.tags) if modifier_resolver != null else 1.0
+	var speed_multiplier: float = 1.0
+	var bonus_pierce := 0
+	if mastery_empowered:
+		match class_id:
+			&"class.swordsman":
+				damage_multiplier = 1.35
+				range_multiplier = 1.2
+			&"class.archer":
+				damage_multiplier = 1.35
+				speed_multiplier = 1.25
+				bonus_pierce = 1
+			&"class.mage":
+				damage_multiplier = 1.6
+				range_multiplier = 1.12
 	match effect.kind:
 		"melee_cone":
 			var stacks := _stack(&"upgrade.swordsman.wide_slash")
-			var radius := effect.range * (1.0 + 0.1 * stacks)
+			var radius: float = effect.range * (1.0 + 0.1 * stacks) * range_multiplier
 			var minimum_dot := effect.radius - (0.18 if stacks > 0 else 0.0)
-			_damage_cone(aim, radius, effect.damage * power, minimum_dot, effect.speed)
+			var hits := _damage_cone(aim, radius, effect.damage * power * damage_multiplier, minimum_dot, effect.speed)
+			_report_direct_hits(ability, hits)
 			_request_effect(global_position, "slash", ability.color, radius, aim)
 		"area":
-			var radius := effect.range
+			var radius: float = effect.range * range_multiplier
 			if ability.id == &"ability.mage.frost":
 				radius *= 1.0 + 0.08 * _stack(&"upgrade.mage.permafrost")
-			_damage_area(global_position, radius, effect.damage * power, effect.speed)
+			var hits := _damage_area(global_position, radius, effect.damage * power * damage_multiplier, effect.speed)
+			_report_direct_hits(ability, hits)
 			if ability.id == &"ability.mage.frost":
 				var frost_stacks := _stack(&"upgrade.mage.permafrost")
 				if frost_stacks > 0:
@@ -180,27 +230,29 @@ func _execute_ability(ability: AbilityDefinition, aim: Vector2) -> void:
 			var old_position := global_position
 			global_position += aim * effect.range * (1.0 + 0.12 * stacks)
 			_clamp_to_world()
-			_damage_line(old_position, global_position, effect.radius, effect.damage * power * (1.0 + 0.08 * stacks))
+			var hits := _damage_line(old_position, global_position, effect.radius * range_multiplier, effect.damage * power * (1.0 + 0.08 * stacks) * damage_multiplier)
+			_report_direct_hits(ability, hits)
 			invulnerability = effect.duration + 0.04 * stacks
 			_request_effect(global_position, "slash", ability.color, 105.0, aim)
 		"guard":
 			var stacks := _stack(&"upgrade.swordsman.fortress")
 			guard_multiplier = maxf(0.1, effect.speed - 0.03 * stacks)
 			guard_clock = effect.range + 0.3 * stacks
+			_guard_perfect_clock = 0.2
 			health = minf(max_health, health + effect.radius + level * 2.0 + 5.0 * stacks)
 			health_changed.emit(health, max_health)
 			_request_effect(global_position, "burst", ability.color, 92.0, aim)
 			queue_redraw()
 		"projectile":
-			_fire_basic_projectile(ability, aim)
+			_fire_basic_projectile(ability, aim, damage_multiplier, speed_multiplier, bonus_pierce)
 		"spread":
-			_fire_spread(ability, aim)
+			_fire_spread(ability, aim, damage_multiplier, speed_multiplier, bonus_pierce)
 		"line_projectile":
 			var stacks := _stack(&"upgrade.archer.drill_tip")
-			_fire_projectile(aim, effect.damage * power, effect.speed * (1.0 + 0.05 * stacks), ability.color, effect.radius, effect.pierce + stacks, effect.range)
+			_fire_projectile(aim, effect.damage * power * damage_multiplier, effect.speed * (1.0 + 0.05 * stacks) * speed_multiplier, ability.color, effect.radius, effect.pierce + stacks + bonus_pierce, effect.range, ability)
 			_request_effect(global_position, "slash", ability.color, 90.0, aim)
 		"target_area":
-			_fire_target_area(ability, aim)
+			_fire_target_area(ability, aim, damage_multiplier, range_multiplier)
 		"teleport":
 			var old_position := global_position
 			global_position += aim * effect.range
@@ -210,21 +262,24 @@ func _execute_ability(ability: AbilityDefinition, aim: Vector2) -> void:
 			_request_effect(global_position, "burst", ability.color, effect.radius, aim)
 			var stacks := _stack(&"upgrade.mage.blink_nova")
 			if stacks > 0:
-				_damage_area(global_position, 72.0 + 8.0 * stacks, 26.0 * power * stacks, 120.0)
+				var hits := _damage_area(global_position, (72.0 + 8.0 * stacks) * range_multiplier, 26.0 * power * stacks * damage_multiplier, 120.0)
+				_report_direct_hits(ability, hits)
+	if mastery_empowered:
+		_request_effect(global_position, "ring", accent_color, 118.0, aim)
 
 
-func _fire_basic_projectile(ability: AbilityDefinition, aim: Vector2) -> void:
+func _fire_basic_projectile(ability: AbilityDefinition, aim: Vector2, damage_multiplier: float, speed_multiplier: float, bonus_pierce: int) -> void:
 	var effect := ability.effect
 	var twin_stacks := _stack(&"upgrade.archer.twin_string") if ability.id == &"ability.archer.shot" else 0
 	if twin_stacks > 0:
 		var twin_damage := effect.damage * power * 0.65 * (1.0 + 0.1 * (twin_stacks - 1))
-		_fire_projectile(aim.rotated(-0.055), twin_damage, effect.speed, ability.color, effect.radius, effect.pierce, effect.range)
-		_fire_projectile(aim.rotated(0.055), twin_damage, effect.speed, ability.color, effect.radius, effect.pierce, effect.range)
+		_fire_projectile(aim.rotated(-0.055), twin_damage * damage_multiplier, effect.speed * speed_multiplier, ability.color, effect.radius, effect.pierce + bonus_pierce, effect.range, ability)
+		_fire_projectile(aim.rotated(0.055), twin_damage * damage_multiplier, effect.speed * speed_multiplier, ability.color, effect.radius, effect.pierce + bonus_pierce, effect.range, ability)
 	else:
-		_fire_projectile(aim, effect.damage * power, effect.speed, ability.color, effect.radius, effect.pierce, effect.range)
+		_fire_projectile(aim, effect.damage * power * damage_multiplier, effect.speed * speed_multiplier, ability.color, effect.radius, effect.pierce + bonus_pierce, effect.range, ability)
 
 
-func _fire_spread(ability: AbilityDefinition, aim: Vector2) -> void:
+func _fire_spread(ability: AbilityDefinition, aim: Vector2, damage_multiplier: float, speed_multiplier: float, bonus_pierce: int) -> void:
 	var effect := ability.effect
 	var angles: Array[float] = []
 	if effect.projectile_count == 5:
@@ -232,28 +287,29 @@ func _fire_spread(ability: AbilityDefinition, aim: Vector2) -> void:
 	else:
 		angles = [-0.22, 0.0, 0.22]
 	for angle in angles:
-		_fire_projectile(aim.rotated(angle), effect.damage * power, effect.speed, ability.color, effect.radius, effect.pierce, effect.range)
+		_fire_projectile(aim.rotated(angle), effect.damage * power * damage_multiplier, effect.speed * speed_multiplier, ability.color, effect.radius, effect.pierce + bonus_pierce, effect.range, ability)
 	if ability.id == &"ability.mage.stars":
 		var stacks := _stack(&"upgrade.mage.constellation")
 		for index in range(stacks):
 			var angle := 0.36 + index * 0.12
-			_fire_projectile(aim.rotated(-angle), effect.damage * power * 0.6, effect.speed, ability.color, effect.radius, effect.pierce, effect.range)
-			_fire_projectile(aim.rotated(angle), effect.damage * power * 0.6, effect.speed, ability.color, effect.radius, effect.pierce, effect.range)
+			_fire_projectile(aim.rotated(-angle), effect.damage * power * 0.6 * damage_multiplier, effect.speed * speed_multiplier, ability.color, effect.radius, effect.pierce + bonus_pierce, effect.range, ability)
+			_fire_projectile(aim.rotated(angle), effect.damage * power * 0.6 * damage_multiplier, effect.speed * speed_multiplier, ability.color, effect.radius, effect.pierce + bonus_pierce, effect.range, ability)
 	_request_effect(global_position, "ring", ability.color, 88.0, aim)
 
 
-func _fire_target_area(ability: AbilityDefinition, aim: Vector2) -> void:
+func _fire_target_area(ability: AbilityDefinition, aim: Vector2, damage_multiplier: float, range_multiplier: float) -> void:
 	var effect := ability.effect
 	var center := global_position + aim * 230.0
 	var nearest := registry.find_nearest(global_position, effect.range)
 	if is_instance_valid(nearest):
 		center = nearest.global_position
 	var stacks := _stack(&"upgrade.archer.storm_front")
-	var radius := effect.radius * (1.0 + 0.08 * stacks)
-	_damage_area(center, radius, effect.damage * power, effect.speed)
+	var radius := effect.radius * (1.0 + 0.08 * stacks) * range_multiplier
+	var hits := _damage_area(center, radius, effect.damage * power * damage_multiplier, effect.speed)
+	_report_direct_hits(ability, hits)
 	_request_effect(center, "burst", ability.color, radius, aim)
 	if stacks > 0:
-		_delayed_area(center, radius, effect.damage * power * 0.55, effect.speed, ability.color)
+		_delayed_area(center, radius, effect.damage * power * 0.55 * damage_multiplier, effect.speed, ability.color)
 
 
 func _delayed_area(center: Vector2, radius: float, damage: float, push: float, color: Color) -> void:
@@ -270,7 +326,7 @@ func _delayed_area(center: Vector2, radius: float, damage: float, push: float, c
 	_request_effect(center, "ring", color, radius, Vector2.RIGHT)
 
 
-func _fire_projectile(direction: Vector2, projectile_damage: float, projectile_speed: float, color: Color, radius: float, pierce: int, lifetime: float) -> void:
+func _fire_projectile(direction: Vector2, projectile_damage: float, projectile_speed: float, color: Color, radius: float, pierce: int, lifetime: float, ability: AbilityDefinition) -> void:
 	projectile_requested.emit(global_position + direction * 28.0, direction, {
 		"team": "player",
 		"damage": projectile_damage,
@@ -279,22 +335,30 @@ func _fire_projectile(direction: Vector2, projectile_damage: float, projectile_s
 		"radius": radius,
 		"pierce": pierce,
 		"lifetime": lifetime,
+		"ability_id": String(ability.id),
+		"ability_tag": String(_ability_mastery_tag(ability)),
 	})
 
 
-func _damage_cone(direction: Vector2, radius: float, damage: float, minimum_dot: float, push: float) -> void:
-	for enemy in registry.query_cone(global_position, direction, radius, minimum_dot):
+func _damage_cone(direction: Vector2, radius: float, damage: float, minimum_dot: float, push: float) -> int:
+	var enemies := registry.query_cone(global_position, direction, radius, minimum_dot)
+	for enemy in enemies:
 		enemy.take_damage(damage, global_position.direction_to(enemy.global_position), push)
+	return enemies.size()
 
 
-func _damage_area(center: Vector2, radius: float, damage: float, push: float) -> void:
-	for enemy in registry.query_circle(center, radius):
+func _damage_area(center: Vector2, radius: float, damage: float, push: float) -> int:
+	var enemies := registry.query_circle(center, radius)
+	for enemy in enemies:
 		enemy.take_damage(damage, center.direction_to(enemy.global_position), push)
+	return enemies.size()
 
 
-func _damage_line(start: Vector2, finish: Vector2, width: float, damage: float) -> void:
-	for enemy in registry.query_segment(start, finish, width):
+func _damage_line(start: Vector2, finish: Vector2, width: float, damage: float) -> int:
+	var enemies := registry.query_segment(start, finish, width)
+	for enemy in enemies:
 		enemy.take_damage(damage, start.direction_to(finish), 210.0)
+	return enemies.size()
 
 
 func _get_aim_direction() -> Vector2:
@@ -308,10 +372,27 @@ func _request_effect(effect_position: Vector2, effect_type: String, color: Color
 	effect_requested.emit(effect_position, effect_type, color, radius, direction)
 
 
+func report_projectile_hit(enemy_position: Vector2, ability_tag: StringName) -> void:
+	if mastery == null:
+		return
+	if class_id == &"class.archer":
+		mastery.report_ranged_hit(global_position.distance_to(enemy_position), velocity.length() > 8.0)
+	elif class_id == &"class.mage":
+		mastery.report_spell_hit(ability_tag)
+
+
 func apply_damage(amount: float) -> bool:
 	if dead or invulnerability > 0.0 or not active:
 		return false
-	health = maxf(0.0, health - amount * guard_multiplier)
+	if mastery != null:
+		if class_id == &"class.swordsman" and guard_clock > 0.0 and _guard_perfect_clock > 0.0:
+			mastery.report_perfect_guard()
+			_guard_perfect_clock = 0.0
+			_request_effect(global_position, "ring", accent_color, 74.0, facing)
+		elif class_id == &"class.archer":
+			mastery.report_player_damaged()
+	var damage_taken_multiplier: float = modifier_resolver.calculate("damage_taken", 1.0) if modifier_resolver != null else 1.0
+	health = maxf(0.0, health - amount * guard_multiplier * damage_taken_multiplier)
 	invulnerability = 0.32
 	hurt_flash = 0.14
 	health_changed.emit(health, max_health)
@@ -364,6 +445,7 @@ func reset_transient_state() -> void:
 	invulnerability = 0.0
 	guard_multiplier = 1.0
 	guard_clock = 0.0
+	_guard_perfect_clock = 0.0
 	hurt_flash = 0.0
 	_cooldown_ui_clock = 0.0
 	queue_redraw()
@@ -381,10 +463,15 @@ func _recalculate_derived_stats(heal_for_level: bool = false) -> void:
 	var old_max := max_health
 	body_color = definition.body_color
 	accent_color = definition.accent_color
-	move_speed = definition.move_speed
-	max_health = definition.max_health + definition.health_per_level * (level - 1) + 8.0 * _stack(&"upgrade.veteran.health")
-	power = definition.power * pow(1.08, level - 1) * pow(1.06, _stack(&"upgrade.veteran.damage"))
+	var base_move_speed := definition.move_speed
+	var base_max_health := definition.max_health + definition.health_per_level * (level - 1) + 8.0 * _stack(&"upgrade.veteran.health")
+	var base_power := definition.power * pow(1.08, level - 1) * pow(1.06, _stack(&"upgrade.veteran.damage"))
+	move_speed = modifier_resolver.calculate("move_speed", base_move_speed) if modifier_resolver != null else base_move_speed
+	max_health = modifier_resolver.calculate("max_health", base_max_health) if modifier_resolver != null else base_max_health
+	power = modifier_resolver.calculate("power", base_power) if modifier_resolver != null else base_power
 	var cooldown_factor := maxf(0.5, pow(0.97, _stack(&"upgrade.veteran.cooldown")))
+	if modifier_resolver != null:
+		cooldown_factor = modifier_resolver.calculate("cooldown_rate", cooldown_factor)
 	cooldown_max.clear()
 	for ability in definition.actions:
 		var value := ability.cooldown * cooldown_factor
@@ -410,11 +497,35 @@ func _emit_all_state() -> void:
 	health_changed.emit(health, max_health)
 	cooldowns_changed.emit(cooldowns.duplicate(), cooldown_max.duplicate())
 	experience_changed.emit(level, experience, experience_to_next)
+	if mastery != null:
+		mastery_changed.emit(mastery.current, MASTERY_SCRIPT.METER_MAX, mastery.get("_resonance_tags").size() if class_id == &"class.mage" else int(floor(mastery.current / 25.0)))
 
 
 func _clamp_to_world() -> void:
 	position.x = clampf(position.x, WORLD_RECT.position.x, WORLD_RECT.end.x)
 	position.y = clampf(position.y, WORLD_RECT.position.y, WORLD_RECT.end.y)
+
+
+func _setup_mastery() -> void:
+	mastery = MASTERY_SCRIPT.new()
+	mastery.configure(class_id)
+	mastery.mastery_changed.connect(mastery_changed.emit)
+
+
+func _report_direct_hits(ability: AbilityDefinition, target_count: int) -> void:
+	if mastery == null or target_count <= 0:
+		return
+	if class_id == &"class.swordsman":
+		mastery.report_multi_hit(target_count)
+	elif class_id == &"class.mage":
+		mastery.report_spell_hit(_ability_mastery_tag(ability))
+
+
+func _ability_mastery_tag(ability: AbilityDefinition) -> StringName:
+	if ability != null and not ability.tags.is_empty():
+		return ability.tags[0]
+	var parts := String(ability.id).split(".")
+	return StringName(parts[parts.size() - 1] if not parts.is_empty() else "arcane")
 
 
 func _draw() -> void:

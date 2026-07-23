@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+delivery = "support"
+target_kind = "ally"
+anticipation = 0.9
+active_duration = 0.08
+recovery = 1.25
+attack_range = 250.0
+hit_radius = 18.0
+charge_width = 18.0
+special_radius = 220.0
+special_power = 24.0
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.cantor_healer"
+display_name = "장송 성가대"
+region_id = &"region.ossuary_monastery"
+role = "support"
+movement_mode = "hold_range"
+counterplay = "황금 고리가 완성되기 전에 성가대를 우선 처치하거나 밀쳐내 치유를 끊는다."
+body_color = Color(0.61, 0.53, 0.66, 1)
+accent_color = Color(0.98, 0.84, 0.49, 1)
+base_health = 74.0
+health_per_wave = 9.0
+move_speed = 67.0
+base_damage = 4.0
+damage_per_wave = 0.45
+experience_value = 45
+preferred_min_distance = 150.0
+preferred_max_distance = 260.0
+threat_cost = 2.1
+attack = SubResource("Attack")

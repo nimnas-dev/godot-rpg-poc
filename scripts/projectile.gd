@@ -11,6 +11,7 @@ var projectile_color := Color("#ffd36c")
 var radius := 7.0
 var pierce := 0
 var team := "player"
+var ability_tag: StringName
 var registry: CombatRegistry
 var player_target: PlayerActor
 var hit_ids: Array[int] = []
@@ -27,6 +28,7 @@ func setup(new_direction: Vector2, spec: Dictionary, combat_registry: CombatRegi
 	radius = float(spec.get("radius", radius))
 	pierce = int(spec.get("pierce", pierce))
 	team = str(spec.get("team", team))
+	ability_tag = StringName(spec.get("ability_tag", ""))
 	registry = combat_registry
 	player_target = target
 	var collision_shape := %CollisionShape2D as CollisionShape2D
@@ -59,6 +61,8 @@ func _hit_enemies_swept(start: Vector2, finish: Vector2) -> void:
 			continue
 		hit_ids.append(id)
 		enemy.take_damage(damage, direction, 115.0)
+		if is_instance_valid(player_target):
+			player_target.report_projectile_hit(enemy.global_position, ability_tag)
 		if pierce <= 0:
 			_finish()
 			return

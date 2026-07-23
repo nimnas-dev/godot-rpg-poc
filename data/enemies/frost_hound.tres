@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+delivery = "dash"
+anticipation = 0.52
+active_duration = 0.2
+recovery = 0.82
+attack_range = 225.0
+hit_radius = 30.0
+charge_distance = 205.0
+charge_width = 29.0
+direction_lock_time = 0.42
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.frost_hound"
+display_name = "서리 사냥개"
+region_id = &"region.frozen_sanatorium"
+role = "charger"
+movement_mode = "pursue"
+counterplay = "낮게 웅크린 뒤의 직선 도약을 옆으로 피하고, 빠른 연속 공격 전에 간격을 만든다."
+body_color = Color(0.51, 0.73, 0.82, 1)
+accent_color = Color(0.84, 0.96, 1, 1)
+base_health = 78.0
+health_per_wave = 10.0
+move_speed = 126.0
+base_damage = 14.0
+damage_per_wave = 0.95
+experience_value = 34
+threat_cost = 1.7
+attack = SubResource("Attack")

@@ -22,6 +22,11 @@ var world_size := Vector2(2400.0, 1600.0)
 var player: Node2D
 var registry: CombatRegistry
 var content: ContentRegistry
+var region_id: StringName
+var difficulty: DifficultyDefinition
+var encounter_kind: StringName = &"combat"
+var chapter := 1
+var depth := 1
 
 var _spawn_queue: Array[StringName] = []
 var _spawn_clock := 0.0
@@ -31,6 +36,8 @@ var _rng := RandomNumberGenerator.new()
 var _attack_tokens: Dictionary = {}
 var _ranged_token_count := 0
 var _attack_elapsed := MIN_ATTACK_INTERVAL
+var _max_attackers := MAX_ATTACKERS
+var _max_ranged_attackers := MAX_RANGED_ATTACKERS
 
 
 func configure(new_player: Node2D, new_registry: CombatRegistry, new_content: ContentRegistry, seed: int, size: Vector2) -> void:
@@ -41,17 +48,36 @@ func configure(new_player: Node2D, new_registry: CombatRegistry, new_content: Co
 	world_size = size
 
 
+func configure_run_context(
+	new_region_id: StringName,
+	new_difficulty: DifficultyDefinition,
+	new_chapter: int,
+	new_depth: int,
+	new_encounter_kind: StringName = &"combat"
+) -> void:
+	region_id = new_region_id
+	difficulty = new_difficulty
+	chapter = maxi(1, new_chapter)
+	depth = clampi(new_depth, 1, 5)
+	encounter_kind = new_encounter_kind if not new_encounter_kind.is_empty() else &"combat"
+	_max_attackers = difficulty.max_attackers if difficulty != null else MAX_ATTACKERS
+	_max_ranged_attackers = difficulty.max_ranged_attackers if difficulty != null else MAX_RANGED_ATTACKERS
+
+
 func start_wave(wave: int) -> void:
 	stop_wave()
 	current_wave = wave
 	_rng.seed = run_seed + wave * 104729
-	var count := mini(MAX_ACTIVE_ENEMIES, 3 + wave * 2)
-	for index in range(count):
-		_spawn_queue.append(_roll_enemy_id(wave, _rng.randf()))
+	if not region_id.is_empty():
+		_build_run_queue()
+	else:
+		var count := mini(MAX_ACTIVE_ENEMIES, 3 + wave * 2)
+		for index in range(count):
+			_spawn_queue.append(_roll_enemy_id(wave, _rng.randf()))
 	_running = true
 	_spawn_clock = 0.1
-	wave_started.emit(wave, count)
-	remaining_changed.emit(count)
+	wave_started.emit(wave, _spawn_queue.size())
+	remaining_changed.emit(_spawn_queue.size())
 
 
 func stop_wave() -> void:
@@ -93,9 +119,9 @@ func report_enemy_defeated(enemy: Node) -> void:
 func request_attack_token(enemy: Node, ranged: bool) -> bool:
 	if not _running or not is_instance_valid(enemy) or _attack_tokens.has(enemy.get_instance_id()):
 		return false
-	if _attack_tokens.size() >= MAX_ATTACKERS or _attack_elapsed < MIN_ATTACK_INTERVAL:
+	if _attack_tokens.size() >= _max_attackers or _attack_elapsed < MIN_ATTACK_INTERVAL:
 		return false
-	if ranged and _ranged_token_count >= MAX_RANGED_ATTACKERS:
+	if ranged and _ranged_token_count >= _max_ranged_attackers:
 		return false
 	if enemy.has_method("is_on_screen") and not enemy.is_on_screen():
 		return false
@@ -120,6 +146,45 @@ func release_attack_token(enemy: Node) -> void:
 func _release_all_attack_tokens() -> void:
 	_attack_tokens.clear()
 	_ranged_token_count = 0
+
+
+func get_enemy_health_multiplier() -> float:
+	var result: float = difficulty.enemy_health_multiplier if difficulty != null else 1.0
+	return result * (1.3 if encounter_kind == &"elite" else 1.0)
+
+
+func get_enemy_damage_multiplier() -> float:
+	var result: float = difficulty.enemy_damage_multiplier if difficulty != null else 1.0
+	return result * (1.15 if encounter_kind == &"elite" else 1.0)
+
+
+func get_telegraph_duration_multiplier() -> float:
+	return difficulty.telegraph_duration_multiplier if difficulty != null else 1.0
+
+
+func _build_run_queue() -> void:
+	if depth == 5:
+		var boss := content.get_boss_for_region(region_id)
+		if boss != null:
+			_spawn_queue.append(boss.id)
+			return
+	var pool := content.get_enemies_for_region(region_id)
+	if pool.is_empty():
+		return
+	var budget := 4.0 + float(chapter - 1) * 1.5 + float(depth - 1) * 2.0
+	if encounter_kind == &"elite":
+		budget *= 1.4
+	var spent := 0.0
+	while _spawn_queue.size() < MAX_ACTIVE_ENEMIES and spent < budget:
+		var affordable: Array[EnemyDefinition] = []
+		for candidate in pool:
+			if candidate.threat_cost <= budget - spent + 0.25 or _spawn_queue.is_empty():
+				affordable.append(candidate)
+		if affordable.is_empty():
+			break
+		var chosen := affordable[_rng.randi_range(0, affordable.size() - 1)]
+		_spawn_queue.append(chosen.id)
+		spent += chosen.threat_cost
 
 
 func _roll_enemy_id(wave: int, roll: float) -> StringName:

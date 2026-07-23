@@ -15,6 +15,7 @@ script = ExtResource("1")
 id = &"ability.swordsman.fortress"
 display_name = "철벽"
 description = "피해를 줄이고 생명력을 회복합니다."
+tags = Array[StringName]([&"guard"])
 cooldown = 10.0
 color = Color(0.470588, 0.784314, 1, 1)
 effect = SubResource("Effect")

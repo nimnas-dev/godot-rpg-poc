@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+delivery = "control"
+target_kind = "area"
+anticipation = 0.95
+active_duration = 0.1
+recovery = 1.12
+attack_range = 310.0
+hit_radius = 24.0
+projectile_speed = 220.0
+direction_lock_time = 0.62
+special_radius = 86.0
+special_power = 0.42
+persistent_duration = 1.65
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.ice_jailer"
+display_name = "빙결 간수"
+region_id = &"region.frozen_sanatorium"
+role = "jailer"
+movement_mode = "anchor"
+counterplay = "사각 얼음 표식이 깔리기 전에 그 밖으로 이동하고, 이동 공간이 닫히기 전에 간수를 우선한다."
+body_color = Color(0.39, 0.55, 0.69, 1)
+accent_color = Color(0.74, 0.93, 1, 1)
+base_health = 122.0
+health_per_wave = 14.0
+move_speed = 58.0
+base_damage = 16.0
+damage_per_wave = 1.0
+experience_value = 54
+threat_cost = 2.7
+attack = SubResource("Attack")

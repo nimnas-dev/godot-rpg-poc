@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+delivery = "dash"
+anticipation = 0.72
+active_duration = 0.16
+recovery = 1.05
+attack_range = 245.0
+hit_radius = 29.0
+charge_distance = 225.0
+charge_width = 27.0
+direction_lock_time = 0.6
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.blink_assassin"
+display_name = "점멸 암살자"
+region_id = &"region.rift_cathedral"
+role = "flanker"
+movement_mode = "flank"
+counterplay = "짧은 점멸 잔상을 보고 반대쪽으로 회피한 뒤, 공격 후 멈춘 순간을 노린다."
+body_color = Color(0.34, 0.18, 0.48, 1)
+accent_color = Color(0.94, 0.37, 0.86, 1)
+base_health = 81.0
+health_per_wave = 10.0
+move_speed = 132.0
+base_damage = 18.0
+damage_per_wave = 1.1
+experience_value = 52
+threat_cost = 2.3
+attack = SubResource("Attack")

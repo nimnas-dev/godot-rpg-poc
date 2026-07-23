@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+anticipation = 0.62
+active_duration = 0.22
+recovery = 0.95
+attack_range = 78.0
+hit_radius = 34.0
+charge_distance = 48.0
+charge_width = 38.0
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.shield_guardian"
+display_name = "방패 수호자"
+region_id = &"region.ossuary_monastery"
+role = "anchor"
+movement_mode = "anchor"
+counterplay = "방패 정면을 피하도록 측면으로 이동하거나, 가드가 없는 회복 시간에 강한 공격을 집중한다."
+body_color = Color(0.36, 0.42, 0.5, 1)
+accent_color = Color(0.8, 0.7, 0.44, 1)
+base_health = 152.0
+health_per_wave = 17.0
+move_speed = 56.0
+base_damage = 10.0
+damage_per_wave = 0.85
+experience_value = 42
+threat_cost = 2.4
+has_frontal_guard = true
+frontal_guard_dot = -0.42
+frontal_damage_multiplier = 0.48
+attack = SubResource("Attack")

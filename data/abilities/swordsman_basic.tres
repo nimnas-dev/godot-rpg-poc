@@ -16,6 +16,7 @@ script = ExtResource("1")
 id = &"ability.swordsman.slash"
 display_name = "베기"
 description = "정면의 적을 빠르게 베어냅니다."
+tags = Array[StringName]([&"melee"])
 cooldown = 0.42
 color = Color(1, 0.819608, 0.478431, 1)
 effect = SubResource("Effect")

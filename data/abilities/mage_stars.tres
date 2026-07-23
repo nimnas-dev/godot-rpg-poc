@@ -18,6 +18,7 @@ script = ExtResource("1")
 id = &"ability.mage.stars"
 display_name = "별의 파편"
 description = "세 방향으로 별빛 투사체를 발사합니다."
+tags = Array[StringName]([&"astral"])
 cooldown = 6.2
 color = Color(0.835294, 0.654902, 1, 1)
 effect = SubResource("Effect")

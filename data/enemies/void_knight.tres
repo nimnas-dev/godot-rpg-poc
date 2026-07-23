@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+anticipation = 0.68
+active_duration = 0.26
+recovery = 1.02
+attack_range = 92.0
+hit_radius = 42.0
+charge_distance = 58.0
+charge_width = 42.0
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.void_knight"
+display_name = "공허 기사"
+region_id = &"region.rift_cathedral"
+role = "anchor"
+movement_mode = "anchor"
+counterplay = "넓은 검격의 보라색 호를 피해 등 뒤로 돌고, 방패가 없는 회복 시간에 집중 공격한다."
+body_color = Color(0.21, 0.2, 0.34, 1)
+accent_color = Color(0.72, 0.49, 0.98, 1)
+base_health = 170.0
+health_per_wave = 19.0
+move_speed = 62.0
+base_damage = 17.0
+damage_per_wave = 1.1
+experience_value = 58
+threat_cost = 2.85
+has_frontal_guard = true
+frontal_guard_dot = -0.5
+frontal_damage_multiplier = 0.64
+attack = SubResource("Attack")

@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+delivery = "summon"
+target_kind = "area"
+anticipation = 1.0
+active_duration = 0.14
+recovery = 1.05
+attack_range = 360.0
+hit_radius = 24.0
+projectile_speed = 230.0
+direction_lock_time = 0.65
+special_radius = 140.0
+special_power = 1.0
+persistent_duration = 2.4
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.bloodroot_matron"
+display_name = "혈근의 모후"
+region_id = &"region.bloodwater_bog"
+role = "summoner"
+movement_mode = "anchor"
+counterplay = "뿌리 균열과 소환체가 겹치기 전에 본체 시전을 끊고 이동 공간을 확보한다."
+body_color = Color(0.36, 0.16, 0.22, 1)
+accent_color = Color(0.94, 0.26, 0.34, 1)
+base_health = 1360.0
+health_per_wave = 48.0
+move_speed = 55.0
+base_damage = 22.0
+damage_per_wave = 1.15
+experience_value = 360
+threat_cost = 12.0
+is_boss = true
+boss_phase_count = 2
+attack = SubResource("Attack")

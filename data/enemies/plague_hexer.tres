@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+delivery = "control"
+target_kind = "area"
+anticipation = 0.88
+active_duration = 0.08
+recovery = 1.0
+attack_range = 350.0
+hit_radius = 19.0
+projectile_speed = 240.0
+direction_lock_time = 0.58
+special_radius = 74.0
+special_power = 0.38
+persistent_duration = 1.5
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.plague_hexer"
+display_name = "역병 주술사"
+region_id = &"region.bloodwater_bog"
+role = "jailer"
+movement_mode = "hold_range"
+counterplay = "초록 봉인이 잠긴 뒤 피격 지점을 벗어나고, 군집보다 주술사를 먼저 처치한다."
+body_color = Color(0.28, 0.48, 0.26, 1)
+accent_color = Color(0.68, 0.92, 0.35, 1)
+base_health = 89.0
+health_per_wave = 11.0
+move_speed = 63.0
+base_damage = 14.0
+damage_per_wave = 0.9
+experience_value = 46
+preferred_min_distance = 205.0
+preferred_max_distance = 330.0
+threat_cost = 2.35
+attack = SubResource("Attack")

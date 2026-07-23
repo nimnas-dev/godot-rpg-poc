@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/enemy_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/resources/enemy_attack_definition.gd" id="2"]
+
+[sub_resource type="Resource" id="Attack"]
+script = ExtResource("2")
+delivery = "dash"
+anticipation = 0.7
+active_duration = 0.23
+recovery = 1.0
+attack_range = 205.0
+hit_radius = 34.0
+charge_distance = 185.0
+charge_width = 31.0
+direction_lock_time = 0.55
+
+[resource]
+script = ExtResource("1")
+id = &"enemy.burrow_stalker"
+display_name = "잠복 추적자"
+region_id = &"region.bloodwater_bog"
+role = "flanker"
+movement_mode = "flank"
+counterplay = "옆으로 파고드는 붉은 흔적이 멈춘 뒤 반대 방향으로 피하고, 착지 회복 시간에 공격한다."
+body_color = Color(0.27, 0.2, 0.17, 1)
+accent_color = Color(0.79, 0.29, 0.22, 1)
+base_health = 84.0
+health_per_wave = 10.0
+move_speed = 105.0
+base_damage = 13.0
+damage_per_wave = 0.9
+experience_value = 35
+threat_cost = 1.8
+attack = SubResource("Attack")

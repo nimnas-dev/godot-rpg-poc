@@ -1,8 +1,8 @@
 class_name RunSaveService
 extends RefCounted
 
-const SCHEMA_VERSION := 1
-const CONTENT_VERSION := 1
+const SCHEMA_VERSION := 2
+const CONTENT_VERSION := 2
 const PROFILE_PATH := "user://profile.json"
 const CHECKPOINT_PATH := "user://run_checkpoint.json"
 
@@ -22,6 +22,13 @@ func default_profile() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"best_cleared_wave": 0,
+		"banked_sigils": 0,
+		"unlock_ids": ["region.hollow_grove"],
+		"quest_states": {},
+		"region_records": {},
+		"earned_cosmetic_ids": [],
+		"equipped_cosmetics": {},
+		"achievement_progress": {},
 		"settings": {
 			"sfx_volume": 0.8,
 			"shake": true,
@@ -48,6 +55,13 @@ func load_profile() -> Dictionary:
 		return default_profile()
 	var result := default_profile()
 	result["best_cleared_wave"] = maxi(0, int(loaded.get("best_cleared_wave", 0)))
+	result["banked_sigils"] = maxi(0, int(loaded.get("banked_sigils", 0)))
+	result["unlock_ids"] = _sanitize_string_array(loaded.get("unlock_ids", []), ["region.hollow_grove"])
+	result["quest_states"] = _sanitize_dictionary(loaded.get("quest_states", {}))
+	result["region_records"] = _sanitize_dictionary(loaded.get("region_records", {}))
+	result["earned_cosmetic_ids"] = _sanitize_string_array(loaded.get("earned_cosmetic_ids", []))
+	result["equipped_cosmetics"] = _sanitize_dictionary(loaded.get("equipped_cosmetics", {}))
+	result["achievement_progress"] = _sanitize_dictionary(loaded.get("achievement_progress", {}))
 	result["settings"] = _sanitize_settings(loaded.get("settings", {}))
 	return result
 
@@ -55,6 +69,13 @@ func load_profile() -> Dictionary:
 func save_profile(profile: Dictionary) -> bool:
 	var normalized := default_profile()
 	normalized["best_cleared_wave"] = maxi(0, int(profile.get("best_cleared_wave", 0)))
+	normalized["banked_sigils"] = maxi(0, int(profile.get("banked_sigils", 0)))
+	normalized["unlock_ids"] = _sanitize_string_array(profile.get("unlock_ids", []), ["region.hollow_grove"])
+	normalized["quest_states"] = _sanitize_dictionary(profile.get("quest_states", {}))
+	normalized["region_records"] = _sanitize_dictionary(profile.get("region_records", {}))
+	normalized["earned_cosmetic_ids"] = _sanitize_string_array(profile.get("earned_cosmetic_ids", []))
+	normalized["equipped_cosmetics"] = _sanitize_dictionary(profile.get("equipped_cosmetics", {}))
+	normalized["achievement_progress"] = _sanitize_dictionary(profile.get("achievement_progress", {}))
 	normalized["settings"] = _sanitize_settings(profile.get("settings", {}))
 	return _atomic_write_json(_profile_path, normalized)
 
@@ -84,7 +105,7 @@ func load_checkpoint() -> Dictionary:
 
 
 func save_checkpoint(checkpoint: Dictionary) -> bool:
-	var normalized := checkpoint.duplicate(true)
+	var normalized := _normalize_checkpoint(checkpoint)
 	normalized["schema_version"] = SCHEMA_VERSION
 	normalized["content_version"] = CONTENT_VERSION
 	if not _validate_checkpoint(normalized):
@@ -103,7 +124,12 @@ func clear_checkpoint() -> void:
 func _validate_checkpoint(data: Dictionary) -> bool:
 	if int(data.get("schema_version", -1)) != SCHEMA_VERSION or int(data.get("content_version", -1)) != CONTENT_VERSION:
 		return false
-	var required := ["run_seed", "wave", "class_id", "level", "experience", "health", "upgrade_stacks"]
+	var required := [
+		"run_seed", "wave", "class_id", "level", "experience", "health", "upgrade_stacks",
+		"difficulty_id", "region_id", "chapter", "depth", "route_seed", "route_state",
+		"relic_ids", "evolution_ids", "banked_sigils", "unbanked_sigils",
+		"reroll_charges", "banished_upgrade_ids", "mastery",
+	]
 	for key in required:
 		if not data.has(key):
 			return false
@@ -113,18 +139,36 @@ func _validate_checkpoint(data: Dictionary) -> bool:
 		return false
 	if not data["upgrade_stacks"] is Dictionary:
 		return false
-	return _content.validate_ids(StringName(data["class_id"]), data["upgrade_stacks"])
+	if not data["route_state"] is Dictionary or not data["mastery"] is Dictionary:
+		return false
+	if not data["relic_ids"] is Array or not data["evolution_ids"] is Array or not data["banished_upgrade_ids"] is Array:
+		return false
+	if int(data["chapter"]) < 1 or int(data["depth"]) < 1 or int(data["depth"]) > 6:
+		return false
+	if int(data["banked_sigils"]) < 0 or int(data["unbanked_sigils"]) < 0 or int(data["reroll_charges"]) < 0 or int(data["reroll_charges"]) > 3:
+		return false
+	return _content.validate_ids(StringName(data["class_id"]), data["upgrade_stacks"]) and _content.validate_run_content_ids(
+		StringName(data["region_id"]),
+		StringName(data["difficulty_id"]),
+		data["relic_ids"],
+		data["evolution_ids"],
+	)
 
 
 func _migrate_profile(data: Dictionary) -> Dictionary:
-	if data.is_empty() or data.has("schema_version"):
+	if data.is_empty():
 		return data
-	if data.has("best_wave"):
+	if not data.has("schema_version") and data.has("best_wave"):
 		return {
-			"schema_version": SCHEMA_VERSION,
+			"schema_version": 1,
 			"best_cleared_wave": maxi(0, int(data.get("best_wave", 0))),
 			"settings": data.get("settings", {}),
 		}
+	if int(data.get("schema_version", -1)) == 1:
+		var migrated := default_profile()
+		migrated["best_cleared_wave"] = maxi(0, int(data.get("best_cleared_wave", 0)))
+		migrated["settings"] = data.get("settings", {})
+		return migrated
 	return data
 
 
@@ -143,17 +187,72 @@ func _sanitize_settings(value: Variant) -> Dictionary:
 
 
 func _migrate_checkpoint(data: Dictionary) -> Dictionary:
-	if int(data.get("schema_version", -1)) != 0:
-		return data
 	var migrated := data.duplicate(true)
-	var legacy_class := str(migrated.get("class_id", ""))
-	if legacy_class in ["swordsman", "archer", "mage"]:
-		migrated["class_id"] = "class.%s" % legacy_class
-	migrated["schema_version"] = SCHEMA_VERSION
-	migrated["content_version"] = CONTENT_VERSION
-	if not migrated.has("upgrade_stacks"):
-		migrated["upgrade_stacks"] = {}
+	if int(migrated.get("schema_version", -1)) == 0:
+		var legacy_class := str(migrated.get("class_id", ""))
+		if legacy_class in ["swordsman", "archer", "mage"]:
+			migrated["class_id"] = "class.%s" % legacy_class
+		migrated["schema_version"] = 1
+		migrated["content_version"] = 1
+		if not migrated.has("upgrade_stacks"):
+			migrated["upgrade_stacks"] = {}
+	if int(migrated.get("schema_version", -1)) == 1:
+		migrated = _normalize_checkpoint(migrated)
+		migrated["schema_version"] = SCHEMA_VERSION
+		migrated["content_version"] = CONTENT_VERSION
 	return migrated
+
+
+func _normalize_checkpoint(data: Dictionary) -> Dictionary:
+	var normalized := data.duplicate(true)
+	var wave := maxi(1, int(normalized.get("wave", 1)))
+	var run_seed := int(normalized.get("run_seed", 0))
+	var chapter := maxi(1, int(normalized.get("chapter", (wave - 1) / 5 + 1)))
+	var class_id := str(normalized.get("class_id", "class.swordsman"))
+	normalized["difficulty_id"] = str(normalized.get("difficulty_id", "difficulty.hunter"))
+	normalized["region_id"] = str(normalized.get("region_id", "region.hollow_grove"))
+	normalized["chapter"] = chapter
+	normalized["depth"] = clampi(int(normalized.get("depth", (wave - 1) % 5 + 1)), 1, 6)
+	normalized["route_seed"] = int(normalized.get("route_seed", run_seed ^ chapter * 104729))
+	normalized["route_state"] = (normalized.get("route_state", {}) as Dictionary).duplicate(true) if normalized.get("route_state", {}) is Dictionary else {}
+	normalized["relic_ids"] = _sanitize_string_array(normalized.get("relic_ids", []))
+	normalized["evolution_ids"] = _sanitize_string_array(normalized.get("evolution_ids", []))
+	normalized["banked_sigils"] = maxi(0, int(normalized.get("banked_sigils", 0)))
+	normalized["unbanked_sigils"] = maxi(0, int(normalized.get("unbanked_sigils", 0)))
+	normalized["reroll_charges"] = clampi(int(normalized.get("reroll_charges", 1)), 0, 3)
+	normalized["banished_upgrade_ids"] = _sanitize_string_array(normalized.get("banished_upgrade_ids", []))
+	var mastery_state: Dictionary = {}
+	var raw_mastery: Variant = normalized.get("mastery", {})
+	if raw_mastery is Dictionary:
+		mastery_state = (raw_mastery as Dictionary).duplicate(true)
+	if mastery_state.is_empty():
+		mastery_state = {
+			"class_id": class_id,
+			"current": 0.0,
+			"ready": false,
+			"resonance_tags": [],
+			"resonance_clock": 0.0,
+		}
+	normalized["mastery"] = mastery_state
+	return normalized
+
+
+func _sanitize_string_array(value: Variant, defaults: Array = []) -> Array[String]:
+	var result: Array[String] = []
+	if value is Array:
+		for entry in value:
+			var text := str(entry)
+			if not text.is_empty() and not result.has(text):
+				result.append(text)
+	for entry in defaults:
+		var text := str(entry)
+		if not text.is_empty() and not result.has(text):
+			result.append(text)
+	return result
+
+
+func _sanitize_dictionary(value: Variant) -> Dictionary:
+	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
 
 
 func _atomic_write_json(path: String, data: Dictionary) -> bool:
