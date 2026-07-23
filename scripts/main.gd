@@ -8,15 +8,24 @@ enum AppState {
 	PLAYING,
 	WAVE_TRANSITION,
 	LEVEL_UP,
+	ROUTE_CHOICE,
+	BOSS_REWARD,
+	REGION_CHOICE,
 	PAUSED,
 	GAME_OVER,
 }
 
 const RUN_WORLD_SCENE := preload("res://scenes/run_world.tscn")
+const QUEST_SERVICE_SCRIPT := preload("res://scripts/quest_progress_service.gd")
+const LOCAL_PLATFORM_SCRIPT := preload("res://scripts/platform/platform_services.gd")
+const ANDROID_PLATFORM_SCRIPT := preload("res://scripts/platform/android_services.gd")
+const IOS_PLATFORM_SCRIPT := preload("res://scripts/platform/ios_services.gd")
 
 var state := AppState.BOOT
 var content: ContentRegistry
 var save_service: RunSaveService
+var quest_service
+var platform_services
 var profile: Dictionary
 var run_world: RunWorld
 var _state_before_pause := AppState.PLAYING
@@ -25,6 +34,7 @@ var _last_health := -1.0
 var _wave_transition_clock := 0.0
 var _next_wave := 1
 var _upgrade_return_state := AppState.PLAYING
+var _pending_post_encounter := false
 
 @onready var _world_host: Node2D = %WorldHost
 @onready var _hud: GameHUD = %HUD
@@ -39,6 +49,10 @@ func _ready() -> void:
 	_connect_hud()
 	_audio_router.configure_buses(content.get_feedback_profile())
 	profile = save_service.load_profile()
+	quest_service = QUEST_SERVICE_SCRIPT.new()
+	quest_service.configure(content, profile.get("quest_states", {}))
+	platform_services = _create_platform_services()
+	platform_services.request_purchased_entitlements()
 	_hud.apply_profile_settings(profile["settings"])
 	_apply_settings(profile["settings"])
 	var checkpoint := save_service.load_checkpoint()
@@ -49,7 +63,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if state == AppState.PLAYING and is_instance_valid(run_world):
 		run_world.set_mobile_move(_hud.get_move_vector())
-	elif state == AppState.WAVE_TRANSITION and is_instance_valid(run_world):
+	elif state == AppState.WAVE_TRANSITION and not _pending_post_encounter and is_instance_valid(run_world):
 		_wave_transition_clock -= delta
 		if _wave_transition_clock <= 0.0:
 			_enter_playing()
@@ -86,6 +100,11 @@ func _notification(what: int) -> void:
 		_hud.reset_input()
 
 
+func _exit_tree() -> void:
+	if platform_services != null:
+		platform_services.shutdown()
+
+
 func request_new_run() -> void:
 	if _transitioning:
 		return
@@ -110,8 +129,13 @@ func request_continue() -> void:
 	_create_run_world()
 	run_world.restore_checkpoint(checkpoint, content)
 	_hud.begin_game(run_world.player.get_class_definition())
-	_enter_playing()
-	run_world.start_wave(int(checkpoint["wave"]))
+	if run_world.session.depth > 5:
+		_show_boss_reward()
+	elif String(run_world.session.route_state.get("selected_node_id", "")).is_empty():
+		_show_route_choices()
+	else:
+		_enter_playing()
+		run_world.start_current_encounter()
 	_transitioning = false
 
 
@@ -146,10 +170,9 @@ func _on_class_selected(class_id: StringName) -> void:
 	_transitioning = true
 	_create_run_world()
 	var seed := int(Time.get_unix_time_from_system()) ^ Time.get_ticks_msec()
-	run_world.configure_new(class_definition, content, seed)
+	run_world.configure_new(class_definition, content, seed, _hud.get_selected_difficulty_id())
 	_hud.begin_game(class_definition)
-	_enter_playing()
-	run_world.start_wave(1)
+	_show_route_choices()
 	_transitioning = false
 
 
@@ -161,7 +184,11 @@ func _create_run_world() -> void:
 	run_world.health_changed.connect(_on_health_changed)
 	run_world.cooldowns_changed.connect(_hud.update_cooldowns)
 	run_world.experience_changed.connect(_hud.update_experience)
+	run_world.mastery_changed.connect(_hud.update_mastery)
+	run_world.objective_changed.connect(_hud.update_objective)
+	run_world.objective_completed.connect(_on_objective_completed)
 	run_world.enemy_count_changed.connect(_hud.update_enemy_count)
+	run_world.run_progress_changed.connect(_hud.update_run_context)
 	run_world.wave_started.connect(_on_wave_started)
 	run_world.wave_cleared.connect(_on_wave_cleared)
 	run_world.upgrade_choice_queued.connect(_on_upgrade_choice_queued)
@@ -189,8 +216,12 @@ func _enter_playing() -> void:
 
 func _on_wave_started(wave: int, _total: int) -> void:
 	_audio_router.play_cue(&"wave")
-	_hud.update_wave(wave)
-	_hud.show_banner("웨이브 %d" % wave, "어둠의 무리가 다가옵니다")
+	_hud.update_run_context(run_world.get_run_context())
+	var context := run_world.get_run_context()
+	_hud.show_banner(
+		"지역 지배자" if bool(context.get("is_boss", false)) else "조우 %d" % int(context.get("depth", 1)),
+		str(context.get("region_name", "변경"))
+	)
 
 
 func _on_wave_cleared(wave: int) -> void:
@@ -201,10 +232,25 @@ func _on_wave_cleared(wave: int) -> void:
 	save_service.save_profile(profile)
 	state = AppState.WAVE_TRANSITION
 	run_world.process_mode = Node.PROCESS_MODE_DISABLED
-	_hud.show_banner("웨이브 완료", "다음 전투를 준비하세요")
-	_wave_transition_clock = 2.2
-	_next_wave = wave + 1
+	_hud.show_banner("조우 완료", "전리품과 다음 길을 확인하세요")
+	_pending_post_encounter = true
 	_transitioning = false
+	call_deferred("_advance_post_encounter")
+
+
+func _advance_post_encounter() -> void:
+	if not _pending_post_encounter or not is_instance_valid(run_world):
+		return
+	if run_world.player.pending_upgrade_choices > 0:
+		_upgrade_return_state = AppState.WAVE_TRANSITION
+		state = AppState.LEVEL_UP
+		_hud.show_level_up(_build_upgrade_choices())
+		return
+	_pending_post_encounter = false
+	if run_world.session.depth > 5:
+		_show_boss_reward()
+	else:
+		_show_route_choices()
 
 
 func _on_upgrade_choice_queued() -> void:
@@ -256,7 +302,7 @@ func _on_upgrade_selected(upgrade_id: StringName) -> void:
 	elif _upgrade_return_state == AppState.WAVE_TRANSITION:
 		state = AppState.WAVE_TRANSITION
 		run_world.process_mode = Node.PROCESS_MODE_DISABLED
-		_hud.show_playing()
+		call_deferred("_advance_post_encounter")
 	else:
 		_enter_playing()
 
@@ -325,6 +371,8 @@ func _connect_hud() -> void:
 	_hud.continue_requested.connect(request_continue)
 	_hud.new_game_requested.connect(request_new_run)
 	_hud.action_requested.connect(_on_action_requested)
+	_hud.action_aim_requested.connect(_on_action_aim_requested)
+	_hud.choice_selected.connect(_on_choice_selected)
 	_hud.pause_requested.connect(request_pause)
 	_hud.resume_requested.connect(request_resume)
 	_hud.restart_requested.connect(request_restart)
@@ -337,3 +385,134 @@ func _on_action_requested(slot: int) -> void:
 	_audio_router.play_cue(&"ui")
 	if state == AppState.PLAYING and is_instance_valid(run_world):
 		run_world.try_use_ability(slot)
+
+
+func _on_action_aim_requested(slot: int, direction: Vector2) -> void:
+	_audio_router.play_cue(&"ui")
+	if state == AppState.PLAYING and is_instance_valid(run_world):
+		run_world.try_use_ability(slot, direction)
+
+
+func _show_route_choices() -> void:
+	if not is_instance_valid(run_world):
+		return
+	state = AppState.ROUTE_CHOICE
+	run_world.process_mode = Node.PROCESS_MODE_DISABLED
+	_hud.update_run_context(run_world.get_run_context())
+	_hud.show_choice(
+		"변경의 길을 선택하세요",
+		"전투 규칙과 보상이 달라집니다",
+		run_world.get_route_choices(),
+		&"route"
+	)
+
+
+func _show_boss_reward() -> void:
+	if not is_instance_valid(run_world):
+		return
+	state = AppState.BOSS_REWARD
+	run_world.process_mode = Node.PROCESS_MODE_DISABLED
+	var choices: Array[Dictionary] = []
+	var relics := run_world.get_relic_choices()
+	for index in range(mini(2, relics.size())):
+		var relic: RelicDefinition = relics[index]
+		choices.append({
+			"id": String(relic.id),
+			"title": "%s · %s" % [relic.display_name, String(relic.rarity)],
+			"description": relic.description,
+		})
+	var evolutions := content.get_evolutions_for_class(run_world.session.class_id)
+	if not evolutions.is_empty():
+		var evolution := evolutions[(run_world.session.chapter - 1) % evolutions.size()]
+		choices.append({
+			"id": String(evolution.id),
+			"title": evolution.display_name,
+			"description": evolution.description,
+		})
+	_hud.show_choice("지배자의 전리품", "유물 슬롯은 네 칸이며 이후 선택은 가장 오래된 유물을 교체합니다", choices, &"boss_reward")
+
+
+func _show_region_choices() -> void:
+	state = AppState.REGION_CHOICE
+	run_world.process_mode = Node.PROCESS_MODE_DISABLED
+	var choices: Array[Dictionary] = []
+	for region_id in content.get_next_region_ids(run_world.session.region_id):
+		var region := content.get_region_definition(region_id)
+		if region != null:
+			choices.append({
+				"id": String(region.id),
+				"title": region.display_name,
+				"description": region.description,
+			})
+	_hud.show_choice("다음 원정지", "확보한 인장은 마을 자원으로 보존되었습니다", choices, &"region")
+
+
+func _on_choice_selected(choice_id: StringName, mode: StringName) -> void:
+	if not is_instance_valid(run_world):
+		return
+	match mode:
+		&"route":
+			if state != AppState.ROUTE_CHOICE or not run_world.select_route_node(choice_id):
+				return
+			_enter_playing()
+			run_world.start_current_encounter()
+		&"boss_reward":
+			if state != AppState.BOSS_REWARD:
+				return
+			var accepted := false
+			if String(choice_id).begins_with("relic."):
+				accepted = run_world.select_relic(choice_id, 0)
+			elif String(choice_id).begins_with("evolution."):
+				accepted = run_world.select_evolution(choice_id)
+			if not accepted:
+				return
+			var banked := run_world.bank_chapter()
+			profile["banked_sigils"] = int(profile.get("banked_sigils", 0)) + banked
+			var unlock_ids: Array = profile.get("unlock_ids", [])
+			for region_id in content.get_next_region_ids(run_world.session.region_id):
+				if not unlock_ids.has(String(region_id)):
+					unlock_ids.append(String(region_id))
+			profile["unlock_ids"] = unlock_ids
+			save_service.save_profile(profile)
+			platform_services.report_achievement_progress(
+				StringName("achievement.chapter.%d" % run_world.session.chapter),
+				100.0
+			)
+			_show_region_choices()
+		&"region":
+			if state != AppState.REGION_CHOICE or not run_world.continue_to_region(choice_id):
+				return
+			_show_route_choices()
+
+
+func _on_objective_completed(objective_id: StringName) -> void:
+	var rewards: Dictionary = quest_service.report_objective_completed(objective_id)
+	var completed: Array = rewards.get("completed_quest_ids", [])
+	if completed.is_empty():
+		return
+	profile["quest_states"] = quest_service.make_state()
+	var unlock_ids: Array = profile.get("unlock_ids", [])
+	for region_id in rewards.get("unlock_region_ids", []):
+		if not unlock_ids.has(region_id):
+			unlock_ids.append(region_id)
+	profile["unlock_ids"] = unlock_ids
+	var cosmetic_ids: Array = profile.get("earned_cosmetic_ids", [])
+	for cosmetic_id in rewards.get("earned_cosmetic_ids", []):
+		if not cosmetic_ids.has(cosmetic_id):
+			cosmetic_ids.append(cosmetic_id)
+	profile["earned_cosmetic_ids"] = cosmetic_ids
+	save_service.save_profile(profile)
+	for quest_id in completed:
+		platform_services.report_achievement_progress(
+			StringName("achievement.%s" % String(quest_id).trim_prefix("quest.")),
+			100.0
+		)
+	_hud.show_banner("퀘스트 완료", "%d개의 새 보상이 마을에 추가되었습니다" % completed.size())
+
+
+func _create_platform_services():
+	if OS.has_feature("android"):
+		return ANDROID_PLATFORM_SCRIPT.new()
+	if OS.has_feature("ios"):
+		return IOS_PLATFORM_SCRIPT.new()
+	return LOCAL_PLATFORM_SCRIPT.create_local()

@@ -133,6 +133,20 @@ theme_override_font_sizes/font_size = 16
 text = "행동, 거리, 타이밍이 다른 세 영웅"
 horizontal_alignment = 1
 
+[node name="DifficultyOption" type="OptionButton" parent="Root/SafeRoot/SelectionOverlay/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+selected = 1
+item_count = 3
+popup/item_0/text = "개척자 · 느린 전조와 낮은 피해"
+popup/item_0/id = 0
+popup/item_1/text = "사냥꾼 · 권장 난이도"
+popup/item_1/id = 1
+popup/item_2/text = "악몽 · 빠른 전조와 네 개의 공격권"
+popup/item_2/id = 2
+
 [node name="Cards" type="HBoxContainer" parent="Root/SafeRoot/SelectionOverlay/Content"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -190,7 +204,7 @@ anchors_preset = 0
 offset_left = 18.0
 offset_top = 18.0
 offset_right = 378.0
-offset_bottom = 145.0
+offset_bottom = 178.0
 
 [node name="Margin" type="MarginContainer" parent="Root/SafeRoot/Gameplay/StatusPanel"]
 layout_mode = 2
@@ -252,6 +266,33 @@ custom_minimum_size = Vector2(0, 12)
 layout_mode = 2
 show_percentage = false
 
+[node name="Mastery" type="Control" parent="Root/SafeRoot/Gameplay/StatusPanel/Margin/Box"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+
+[node name="MasteryBar" type="ProgressBar" parent="Root/SafeRoot/Gameplay/StatusPanel/Margin/Box/Mastery"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+max_value = 100.0
+show_percentage = false
+
+[node name="MasteryLabel" type="Label" parent="Root/SafeRoot/Gameplay/StatusPanel/Margin/Box/Mastery"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "숙련 0% · 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="WavePanel" type="PanelContainer" parent="Root/SafeRoot/Gameplay"]
 unique_name_in_owner = true
 layout_mode = 1
@@ -260,7 +301,7 @@ anchor_right = 1.0
 offset_left = 500.0
 offset_top = 18.0
 offset_right = -500.0
-offset_bottom = 94.0
+offset_bottom = 116.0
 grow_horizontal = 2
 
 [node name="Box" type="VBoxContainer" parent="Root/SafeRoot/Gameplay/WavePanel"]
@@ -279,6 +320,13 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.78, 0.8, 1)
 text = "남은 적 0"
+horizontal_alignment = 1
+
+[node name="ObjectiveLabel" type="Label" parent="Root/SafeRoot/Gameplay/WavePanel/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.82, 0.45, 1)
+text = "목표 대기"
 horizontal_alignment = 1
 
 [node name="PauseButton" type="Button" parent="Root/SafeRoot/Gameplay"]
@@ -559,6 +607,82 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 18
 text = "강화 3"
+autowrap_mode = 2
+
+[node name="ChoiceOverlay" type="ColorRect" parent="Root/SafeRoot"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.025, 0.045, 0.055, 0.94)
+
+[node name="Content" type="VBoxContainer" parent="Root/SafeRoot/ChoiceOverlay"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -540.0
+offset_top = -250.0
+offset_right = 540.0
+offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="ChoiceTitle" type="Label" parent="Root/SafeRoot/ChoiceOverlay/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.86, 0.52, 1)
+theme_override_font_sizes/font_size = 36
+text = "변경의 길을 선택하세요"
+horizontal_alignment = 1
+
+[node name="ChoiceSubtitle" type="Label" parent="Root/SafeRoot/ChoiceOverlay/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.8, 0.82, 1)
+theme_override_font_sizes/font_size = 16
+text = "선택은 현재 런에 저장됩니다"
+horizontal_alignment = 1
+
+[node name="Choices" type="HBoxContainer" parent="Root/SafeRoot/ChoiceOverlay/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="Choice1" type="Button" parent="Root/SafeRoot/ChoiceOverlay/Content/Choices"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(330, 320)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "선택 1"
+autowrap_mode = 2
+
+[node name="Choice2" type="Button" parent="Root/SafeRoot/ChoiceOverlay/Content/Choices"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(330, 320)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "선택 2"
+autowrap_mode = 2
+
+[node name="Choice3" type="Button" parent="Root/SafeRoot/ChoiceOverlay/Content/Choices"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(330, 320)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "선택 3"
 autowrap_mode = 2
 
 [node name="GameOverOverlay" type="ColorRect" parent="Root/SafeRoot"]
