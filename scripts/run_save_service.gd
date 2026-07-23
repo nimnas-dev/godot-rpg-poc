@@ -38,7 +38,7 @@ func load_profile() -> Dictionary:
 	for candidate in [_profile_path, _profile_path + ".bak"]:
 		if not FileAccess.file_exists(candidate):
 			continue
-		var parsed = JSON.parse_string(FileAccess.get_file_as_string(candidate))
+		var parsed: Variant = _parse_json_file(candidate)
 		if parsed is Dictionary:
 			parsed = _migrate_profile(parsed)
 			if int(parsed.get("schema_version", -1)) == SCHEMA_VERSION:
@@ -72,7 +72,7 @@ func load_checkpoint() -> Dictionary:
 		if not FileAccess.file_exists(candidate):
 			continue
 		found_file = true
-		var parsed = JSON.parse_string(FileAccess.get_file_as_string(candidate))
+		var parsed: Variant = _parse_json_file(candidate)
 		if parsed is Dictionary:
 			parsed = _migrate_checkpoint(parsed)
 		if parsed is Dictionary and _validate_checkpoint(parsed):
@@ -95,7 +95,7 @@ func save_checkpoint(checkpoint: Dictionary) -> bool:
 
 func clear_checkpoint() -> void:
 	for suffix in ["", ".tmp", ".bak"]:
-		var path := _checkpoint_path + suffix
+		var path: String = _checkpoint_path + suffix
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
@@ -166,7 +166,7 @@ func _atomic_write_json(path: String, data: Dictionary) -> bool:
 	file.store_string(JSON.stringify(data, "\t"))
 	file.flush()
 	file.close()
-	var reparsed = JSON.parse_string(FileAccess.get_file_as_string(temporary))
+	var reparsed: Variant = _parse_json_file(temporary)
 	if not reparsed is Dictionary:
 		last_error = "저장 데이터 검증에 실패했습니다."
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary))
@@ -175,7 +175,7 @@ func _atomic_write_json(path: String, data: Dictionary) -> bool:
 	var absolute_temp := ProjectSettings.globalize_path(temporary)
 	var absolute_backup := ProjectSettings.globalize_path(path + ".bak")
 	if FileAccess.file_exists(path):
-		var existing = JSON.parse_string(FileAccess.get_file_as_string(path))
+		var existing: Variant = _parse_json_file(path)
 		var existing_valid := existing is Dictionary
 		if existing_valid and path == _checkpoint_path:
 			existing_valid = _validate_checkpoint(_migrate_checkpoint(existing))
@@ -197,3 +197,10 @@ func _atomic_write_json(path: String, data: Dictionary) -> bool:
 		last_error = "검증된 저장 파일을 적용할 수 없습니다."
 		return false
 	return true
+
+
+func _parse_json_file(path: String) -> Variant:
+	var json := JSON.new()
+	if json.parse(FileAccess.get_file_as_string(path)) != OK:
+		return null
+	return json.data

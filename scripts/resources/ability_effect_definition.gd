@@ -9,6 +9,6 @@ extends Resource
 @export var pierce := 0
 @export var projectile_count := 1
 @export var duration := 0.0
-@export_enum("", "slow") var status_type := ""
+@export var status_type: String = ""
 @export var status_strength := 0.0
 @export var status_duration := 0.0

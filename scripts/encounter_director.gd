@@ -71,7 +71,7 @@ func _process(delta: float) -> void:
 	_spawn_clock -= delta
 	if _spawn_clock > 0.0:
 		return
-	var enemy_id := _spawn_queue.pop_front()
+	var enemy_id: StringName = _spawn_queue.pop_front()
 	var definition := content.get_enemy_definition(enemy_id)
 	if definition != null:
 		var spawn_position := choose_spawn_position(player.global_position, registry.snapshot_positions(), _rng, world_size)
@@ -148,7 +148,7 @@ static func choose_spawn_position(player_position: Vector2, enemy_positions: Arr
 	for angle_index in range(64):
 		var direction := Vector2.from_angle(TAU * float(angle_index) / 64.0)
 		for distance in [MAX_PLAYER_DISTANCE, MIN_PLAYER_DISTANCE]:
-			var candidate := player_position + direction * distance
+			var candidate: Vector2 = player_position + direction * distance
 			if _is_valid_spawn(candidate, player_position, enemy_positions, bounds):
 				fallback_candidates.append(candidate)
 	if not fallback_candidates.is_empty():

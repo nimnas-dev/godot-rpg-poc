@@ -1,4 +1,4 @@
-class_name VirtualJoystick
+class_name ArcaneVirtualJoystick
 extends Control
 
 var value := Vector2.ZERO

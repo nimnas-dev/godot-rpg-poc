@@ -5,8 +5,9 @@ config_version=5
 
 config/name="Arcane Frontier"
 run/main_scene="res://scenes/main.tscn"
-config/features=PackedStringArray("4.3", "Mobile")
-config/version="0.2.0"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/version="0.3.0"
+config/icon="res://icon.svg"
 config/quit_on_go_back=false
 
 [display]
@@ -16,6 +17,7 @@ window/size/viewport_height=720
 window/size/window_width_override=1280
 window/size/window_height_override=720
 window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
 window/handheld/orientation=0
 
 [audio]
@@ -30,6 +32,7 @@ common/physics_ticks_per_second=60
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
 textures/default_filters/use_nearest_mipmap_filter=false
 textures/canvas_textures/default_texture_filter=0
 

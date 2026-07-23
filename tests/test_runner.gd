@@ -37,6 +37,7 @@ func _run() -> void:
 	_test_save_recovery(content)
 	_test_safe_area_layouts()
 	await _test_hud_scene()
+	await process_frame
 	if _failures.is_empty():
 		print("PASS: %d checks" % _checks)
 		quit(0)
@@ -77,6 +78,7 @@ func _test_attack_budget(content: ContentRegistry) -> void:
 	var registry := CombatRegistry.new()
 	get_root().add_child(director)
 	get_root().add_child(player)
+	get_root().add_child(registry)
 	director.configure(player, registry, content, 77, Vector2(2400, 1600))
 	director.start_wave(20)
 	_check((director.get("_spawn_queue") as Array).size() == 24, "웨이브 활성 적 수는 24로 제한되어야 함")
@@ -99,6 +101,7 @@ func _test_attack_budget(content: ContentRegistry) -> void:
 	player.queue_free()
 	for enemy in [ranged_a, ranged_b, melee_a, melee_b, melee_c]:
 		enemy.queue_free()
+	registry.queue_free()
 
 
 func _test_player_runtime(content: ContentRegistry) -> void:
@@ -215,7 +218,7 @@ func _test_save_recovery(content: ContentRegistry) -> void:
 	_check(not migrated.is_empty() and migrated["class_id"] == "class.archer", "schema v0 class ID는 v1 stable ID로 이관되어야 함")
 	service.clear_checkpoint()
 	for suffix in ["", ".bak", ".tmp"]:
-		var path := profile_path + suffix
+		var path: String = profile_path + suffix
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
@@ -225,8 +228,8 @@ func _test_hud_scene() -> void:
 	get_root().add_child(hud)
 	await process_frame
 	_check(hud.get_node_or_null("%SafeRoot") != null, "HUD는 safe-area root를 가져야 함")
-	_check(hud.get_node_or_null("%VirtualJoystick") is VirtualJoystick, "HUD는 typed virtual joystick을 가져야 함")
-	var joystick := hud.get_node("%VirtualJoystick") as VirtualJoystick
+	_check(hud.get_node_or_null("%VirtualJoystick") is ArcaneVirtualJoystick, "HUD는 typed virtual joystick을 가져야 함")
+	var joystick := hud.get_node("%VirtualJoystick") as ArcaneVirtualJoystick
 	var first_touch := InputEventScreenTouch.new()
 	first_touch.index = 1
 	first_touch.pressed = true

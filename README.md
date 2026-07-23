@@ -1,6 +1,6 @@
 # Arcane Frontier
 
-Godot 4.3 기반 Android 우선 2D 탑다운 판타지 RPG vertical slice입니다. 검사·궁수·마법사 중 하나를 선택해 역할이 다른 적 조합의 끝없는 웨이브를 돌파하고, 레벨마다 세 가지 강화 중 하나를 선택합니다.
+Godot 4.7.1 기반 Android 우선 2D 탑다운 판타지 RPG vertical slice입니다. 검사·궁수·마법사 중 하나를 선택해 역할이 다른 적 조합의 끝없는 웨이브를 돌파하고, 레벨마다 세 가지 강화 중 하나를 선택합니다.
 
 ## 현재 플레이 루프
 
@@ -34,12 +34,13 @@ Android Back과 앱 백그라운드 전환은 전투를 일시정지하고 입�
 
 ## 실행과 검증
 
-1. Godot 4.3에서 `project.godot`을 가져옵니다.
+1. Godot 4.7.1 Standard에서 `project.godot`을 가져옵니다.
 2. F5로 메인 씬을 실행합니다.
 3. CLI 검증은 다음 명령을 사용합니다.
 
 ```bash
 godot --headless --path . --editor --quit
+godot --headless --path . --quit-after 180
 godot --headless --path . --script res://tests/test_runner.gd
 python3 .codex/skills/godot-architect/scripts/audit_godot_architecture.py .
 python3 .codex/skills/game-balance/scripts/simulate_progression.py
@@ -47,13 +48,15 @@ python3 .codex/skills/game-balance/scripts/simulate_progression.py
 
 ## 모바일 빌드 범위
 
-Android arm64 디버그 빌드가 0.2.0의 완료 플랫폼입니다. Godot Export Templates, Android SDK/JDK와 로컬 디버그 키를 설정한 뒤 다음을 실행합니다.
+Android arm64 디버그 APK가 0.3.0의 완료 플랫폼입니다. Godot 4.7.1 Export Templates, JDK 17과 Android SDK를 설정한 뒤 다음을 실행합니다.
 
 ```bash
 godot --headless --path . --export-debug Android build/android/arcane-frontier.apk
 ```
 
-Android 프리셋은 immersive mode와 진동 권한을 사용합니다. HUD는 `DisplayServer.get_display_safe_area()`를 viewport 좌표로 변환하여 16:9, 19.5:9, 4:3 레이아웃 안쪽에 배치합니다.
+Android 프리셋은 package `com.arcane.frontier`, arm64-v8a, immersive mode와 진동 권한을 사용합니다. HUD는 `DisplayServer.get_display_safe_area()`를 viewport 좌표로 변환하여 16:9, 19.5:9, 4:3 레이아웃 안쪽에 배치합니다.
+
+재현 가능한 환경 설정, APK 검사와 설치·실행 절차는 [`docs/android-build.md`](docs/android-build.md)를 따릅니다. 이 출력물은 로컬 디버그 서명용이며 Play Store 제출용 release AAB가 아닙니다.
 
 iOS 프리셋은 올바른 `.zip` 출력 형식으로만 정리되어 있으며 runnable이 아닙니다. Apple Team ID, 인증서, 실제 iOS 기기 빌드 검증은 이 버전 범위에서 제외됩니다.
 
