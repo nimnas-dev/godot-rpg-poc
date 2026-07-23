@@ -1,6 +1,6 @@
 ---
 name: godot-architect
-description: Godot 4 프로젝트의 씬 트리, 노드 책임, 신호, 의존성 주입, Autoload, Resource 데이터, 파일 구조와 성능 경계를 설계하고 리뷰한다. Godot 프로젝트 신규 구조 설계, 기능 추가 전 아키텍처 결정, 결합도 높은 씬·스크립트 리팩터링, 순환 의존성 제거, 모바일 성능 구조 점검, 프로젝트 규칙 수립 작업에 사용한다.
+description: Godot 4 프로젝트의 씬 트리, 노드 책임, 신호, 의존성 주입, Autoload, Resource 데이터, 파일 구조와 런타임 성능 경계를 설계하고 리뷰한다. Godot 프로젝트 신규 구조 설계, 기능 추가 전 아키텍처 결정, 결합도 높은 씬·스크립트 리팩터링, 순환 의존성 제거, 모바일 성능 구조 점검, 프로젝트 규칙 수립 작업에 사용한다. 엔진 버전 이관은 godot-migration, 플랫폼 export·서명·패키징은 godot-build-platform과 함께 사용한다.
 ---
 
 # Godot Architect
@@ -16,6 +16,15 @@ Godot의 씬 기반 합성을 유지하면서 기능을 독립적으로 테스�
 5. 가장 작은 안전한 구조 변경을 제안하고 기존 동작을 보존하면서 단계적으로 적용한다.
 6. 변경 후 메인 씬, 독립 씬, 모바일 해상도에서 검증하고 프로파일링한다.
 
+## Godot Migration·Platform Build와의 경계
+
+- 엔진 버전과 API·직렬화·import 호환성은 `$godot-migration`이 소유한다.
+- export preset·template, SDK, signing과 artifact 판정은 `$godot-build-platform`이 소유한다.
+- 이 스킬은 마이그레이션으로 발생한 scene owner, dependency, Resource 경계, lifecycle과 성능 구조 변화를 소유한다.
+- 엔진 업데이트가 parser rename만 요구하고 구조가 보존되면 불필요한 리팩터링을 추가하지 않는다.
+- renderer·physics backend 변경은 migration contract와 측정 결과 없이 아키텍처 개선으로 끼워 넣지 않는다.
+- 함께 사용할 때 각 스킬의 migration, build와 scene/runtime gate를 모두 별도로 통과해야 한다.
+
 ## 필수 규칙
 
 - 씬 하나에 하나의 명확한 책임을 부여한다. 독립 실행할 수 있는 기능 단위를 별도 씬으로 만든다.
@@ -27,7 +36,7 @@ Godot의 씬 기반 합성을 유지하면서 기능을 독립적으로 테스�
 - Autoload는 저장소, 세션 전환, 오디오 라우팅처럼 실제로 전역 생명주기를 갖는 서비스에만 사용한다.
 - 매 프레임 트리 검색, 동적 파일 로드, 불필요한 노드 생성·해제를 피한다. 참조는 초기화 때 캐시한다.
 - 최적화는 프로파일러로 병목을 확인한 뒤 수행한다. 데스크톱 결과로 모바일 성능을 추정하지 않는다.
-- 엔진 버전별 API 차이를 확인하고 `project.godot`의 feature 버전을 기준으로 stable 문서를 선택한다.
+- `$godot-migration`이 정한 source/target 버전과 공식 migration guide를 기준으로 API 차이를 확인한다. 일반 구조 작업은 `project.godot`의 현재 feature 버전 문서를 사용한다.
 
 ## 구조 결정
 

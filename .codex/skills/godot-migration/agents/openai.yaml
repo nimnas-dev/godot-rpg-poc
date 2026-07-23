@@ -1,0 +1,4 @@
+interface:
+  display_name: "Godot Migration"
+  short_description: "Godot 엔진 버전·API·리소스 호환성 이관"
+  default_prompt: "$godot-migration을 사용해 이 프로젝트를 목표 Godot 버전으로 안전하게 이관하고 런타임 호환성을 검증해 주세요."

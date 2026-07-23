@@ -7,6 +7,13 @@ description: 게임의 순간 행동 반복, 전투·탐험 core loop, 세션과
 
 플레이어가 반복하는 행동과 애플리케이션이 전환하는 상태를 분리해서 설계한다. 반복 횟수보다 선택, 피드백, 학습, 변화가 지속되는지를 우선한다.
 
+## 엔진 이관·플랫폼 Build 경계
+
+- 이 스킬은 pause, interruption, background/foreground, restart와 recovery state의 게임 동작을 소유한다.
+- OS lifecycle callback의 엔진 버전 호환성은 `$godot-migration`이 소유한다.
+- 플랫폼 export·entitlement·manifest와 artifact 판정은 `$godot-build-platform`이 소유한다.
+- 엔진 또는 플랫폼 변경이 application state에 영향을 주면 해당 스킬을 함께 적용하고 각 target 기기에서 중단·복귀를 검증한다.
+
 ## 먼저 구분할 것
 
 - Engine loop: 입력, update, physics, render의 프레임 실행 구조. Godot가 제공한다.

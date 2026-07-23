@@ -7,6 +7,12 @@ description: 플레이어 입력과 게임 반응 사이의 감각을 진단하�
 
 게임 규칙을 가리는 장식이 아니라 입력, 결과, 중요도를 즉시 이해하게 하는 감각적 피드백을 만든다. 모든 효과는 목표 감정과 게임플레이 정보를 가져야 한다.
 
+## 엔진 이관·플랫폼 Build 경계
+
+- 이 스킬은 플랫폼이 바뀔 때의 입력 감각, touch ownership, safe area, 햅틱, 오디오, 화면 비율과 체감 성능을 소유한다.
+- SDK, export preset·template, package, signing, store 요구와 artifact 판정은 `$godot-build-platform`이 소유한다.
+- 엔진 변경으로 input·vibration·renderer·audio API가 달라지면 `$godot-migration`을, 플랫폼 빌드·실기기 검증이 필요하면 `$godot-build-platform`을 함께 적용한다.
+
 ## 작업 절차
 
 1. 개선할 한 가지 상호작용을 선택하고 입력부터 회복까지 프레임 단위로 관찰한다.

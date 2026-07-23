@@ -7,6 +7,12 @@ description: Godot 4에서 재미있고 확장 가능한 RPG의 캐릭터 능력
 
 전투, 보상, 성장이 서로를 강화하는 RPG 시스템을 만든다. 시스템 수보다 플레이어가 이해하고 계획하고 표현할 수 있는 선택을 우선한다.
 
+## 엔진 마이그레이션 경계
+
+- 이 스킬은 플레이어 save schema, content ID, runtime state reconstruction과 데이터 migration을 소유한다.
+- Godot scene·Resource 직렬화 포맷, import와 엔진 버전 호환성은 `$godot-migration`이 소유한다.
+- 엔진 이관으로 serialized type이나 저장 API가 바뀌면 두 스킬을 함께 적용하되, project file conversion과 player save migration을 별도 테스트한다.
+
 ## 작업 절차
 
 1. 게임 fantasy와 RPG 핵심 동사를 정의한다. 예: `탐험한다`, `싸운다`, `획득한다`, `빌드를 바꾼다`.

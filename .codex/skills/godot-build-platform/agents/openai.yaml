@@ -1,0 +1,4 @@
+interface:
+  display_name: "Godot Build Platform"
+  short_description: "Godot 멀티플랫폼 빌드·서명·패키징·출시 검증"
+  default_prompt: "$godot-build-platform을 사용해 이 Godot 프로젝트의 대상 플랫폼 빌드와 실제 출시 준비 상태를 검증해 주세요."
