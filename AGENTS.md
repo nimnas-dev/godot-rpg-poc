@@ -81,6 +81,8 @@ Godot 엔진 버전, API·직렬화·import·UID, renderer·physics backend의 �
 
 export preset·template, 플랫폼 SDK·툴체인, package·architecture, 서명·notarization, artifact·설치·스토어 출시가 관련되면 `$godot-build-platform`을 반드시 추가한다. 엔진을 바꾸고 대상 플랫폼 빌드까지 검증하는 작업은 두 스킬을 함께 사용하되 migration gate와 build gate를 별도로 보고한다.
 
+기능, 버그 수정, 리팩터링, 설정, 문서, 스킬과 CI 등 저장소에 반영할 변경에는 `$github-delivery`를 반드시 추가한다. 도메인 스킬이 구현과 검증을 소유하고 `$github-delivery`는 변경 전 브랜치 생성부터 기능 단위 커밋, PR 생성, 안전한 자동 병합과 기본 브랜치 동기화까지의 마지막 delivery gate를 소유한다.
+
 스킬을 적용할 때는 다음을 지킨다.
 
 1. 구현 전에 해당 `SKILL.md`를 끝까지 읽는다.
@@ -91,6 +93,39 @@ export preset·template, 플랫폼 SDK·툴체인, package·architecture, 서명
 6. 최종 보고에 사용한 스킬, 주요 설계 결정, 실행한 검증과 남은 위험을 기록한다.
 
 ## 작업별 필수 스킬 라우팅
+
+### `$github-delivery`
+
+다음 작업에서는 항상 사용한다.
+
+- 기능 추가, 버그 수정, 리팩터링과 코드베이스 구조 변경
+- scene·Resource·프로젝트 설정, 문서, 스킬, `AGENTS.md`, 테스트와 CI 변경
+- commit, push, pull request, review 대응, merge와 기본 브랜치 반영
+
+설명·조사·진단만 수행하고 저장소 파일을 바꾸지 않는 작업에는 적용하지 않는다. 사용자가 특정 작업에서 commit, push, PR 또는 merge를 금지했다면 그 지시를 우선한다.
+
+저장소 변경 작업은 다음 delivery lifecycle을 따른다.
+
+1. 첫 파일 수정 전에 `git status`, 현재 브랜치, remote, 기본 브랜치, GitHub identity와 commit author 설정을 확인한다.
+2. 기본 브랜치에서 시작하면 원격과 fast-forward 상태를 확인하고 `agent/<short-kebab-task>` 작업 브랜치를 먼저 만든다. 이미 같은 작업 전용 브랜치라면 그대로 사용한다.
+3. 기존 modified·staged·untracked 파일은 사용자 소유로 보존한다. 이번 작업과 명확히 구분되는 경로만 다루고 임의로 stash, reset, checkout 또는 삭제하지 않는다. 작업 시작 전에 staged 변경이 있으면 일반 commit에 섞일 수 있으므로 사용자가 index 경계를 정리할 때까지 delivery commit을 만들지 않는다.
+4. 관련 도메인 스킬의 완료 조건으로 구현과 검증을 마친다.
+5. `git add -- <explicit-paths>`로 기능 단위 변경만 스테이징하고 staged diff를 검토한 뒤 한 가지 의도의 commit을 만든다. 기존 변경이 있거나 범위가 혼합되었을 때 `git add .`와 `git add -A`를 사용하지 않는다.
+6. 이 저장소의 GitHub 작업은 `nimnas-dev` 계정으로 수행하고 commit author도 해당 계정의 identity인지 확인한다. credential 값은 읽거나 출력하지 않는다.
+7. 작업 목표를 달성하면 branch를 push하고 같은 head의 열린 PR이 없는지 확인한 뒤 draft가 아닌 ready PR을 자동 생성한다. 기존 PR이 있으면 중복 생성하지 않고 갱신한다. PR에는 목적, 주요 변경, 검증 결과, 미검증 항목과 위험을 기록한다.
+8. merge gate를 통과하면 별도 확인을 다시 요구하지 않고 PR을 자동 병합한다. 병합 후 원격 결과를 확인하고, worktree가 깨끗하고 unpushed commit이 없을 때만 로컬 기본 브랜치를 fast-forward 동기화하고 병합된 원격·로컬 작업 브랜치를 정리한다.
+
+이 지침은 저장소 변경 작업을 완료할 때 push, ready PR 생성과 merge gate 통과 후 병합을 수행하는 standing authorization이다. 새 release 배포, 패키지 게시, 스토어 제출, branch protection 우회와 force push 권한까지 포함하지 않는다.
+
+merge gate는 다음을 모두 요구한다.
+
+- 요청 범위와 완료 조건을 모두 달성하고 PR diff에 무관한 변경이 없음
+- 관련 로컬 검증과 필수 CI가 통과함
+- PR이 conflict 없이 mergeable함
+- 필수 review, branch protection과 unresolved conversation 조건을 충족함
+- secret, credential과 불필요한 generated artifact가 포함되지 않음
+
+CI나 필수 review가 구성되지 않은 경우에는 기록된 로컬 검증과 GitHub의 mergeable 상태를 gate 증거로 사용한다. 검증 실패, conflict, 필수 check·review 대기, 권한·identity 불일치 또는 범위를 판별할 수 없는 기존 변경이 있으면 보호 규칙을 우회하지 않는다. 안전하게 해결할 수 없으면 branch와 commit 또는 생성된 PR을 보존하고 차단 조건을 보고한다.
 
 ### `$godot-migration`
 
@@ -180,6 +215,7 @@ python3 .codex/skills/game-balance/scripts/simulate_progression.py
 
 | 작업 | 반드시 함께 적용할 스킬 |
 | --- | --- |
+| 저장소에 반영하는 모든 변경 | `$github-delivery` 및 실제 변경 영역의 모든 도메인 스킬 |
 | 새 직업 또는 직업 스킬 | `$godot-architect`, `$build-rpg-system`, `$game-balance`, `$game-feel` |
 | 전투 공식 또는 status/effect 변경 | `$godot-architect`, `$build-rpg-system`, `$game-balance`; 표현이 바뀌면 `$game-feel` |
 | 새 일반 적 또는 공격 패턴 | `$godot-architect`, `$build-rpg-enemy`, `$game-balance`, `$game-feel` |
@@ -195,16 +231,17 @@ python3 .codex/skills/game-balance/scripts/simulate_progression.py
 
 ## 구현 전 필수 절차
 
-1. `project.godot`, 관련 씬·스크립트·Resource와 기존 변경 상태를 확인한다.
-2. 적용할 스킬을 결정하고 해당 지침과 필요한 참조 문서를 읽는다.
-3. 엔진 작업이면 source/target exact version, baseline, rollback과 import·runtime gate를 migration contract로 정한다.
-4. 플랫폼 작업이면 target·artifact·architecture·signing·배포 채널과 검증 환경을 build contract로 정한다.
-5. 플레이어에게 나타나는 목표 경험과 완료 조건을 한두 문장으로 정의한다.
-6. authoritative owner, 데이터 경계, 입력·출력, 생명주기와 저장 여부를 정한다.
-7. 밸런스 수치, 상태 전이, 공격 패턴 또는 월드 동선이 있으면 구현 전에 표·그래프·간단한 계약으로 명시한다.
-8. 기존 동작을 보존하는 가장 작은 end-to-end 변경을 구현한다.
-9. 독립 기능 테스트와 실제 main scene 통합 테스트를 모두 수행한다.
-10. 대상 플랫폼이 있으면 실제 artifact 검사, 설치·launch와 release 요구를 별도 검증한다.
+1. 저장소 변경 작업이면 `$github-delivery` preflight를 실행하고 기본 브랜치가 아닌 작업 브랜치인지 확인한다.
+2. `project.godot`, 관련 씬·스크립트·Resource와 기존 변경 상태를 확인한다.
+3. 적용할 스킬을 결정하고 해당 지침과 필요한 참조 문서를 읽는다.
+4. 엔진 작업이면 source/target exact version, baseline, rollback과 import·runtime gate를 migration contract로 정한다.
+5. 플랫폼 작업이면 target·artifact·architecture·signing·배포 채널과 검증 환경을 build contract로 정한다.
+6. 플레이어에게 나타나는 목표 경험과 완료 조건을 한두 문장으로 정의한다.
+7. authoritative owner, 데이터 경계, 입력·출력, 생명주기와 저장 여부를 정한다.
+8. 밸런스 수치, 상태 전이, 공격 패턴 또는 월드 동선이 있으면 구현 전에 표·그래프·간단한 계약으로 명시한다.
+9. 기존 동작을 보존하는 가장 작은 end-to-end 변경을 구현한다.
+10. 독립 기능 테스트와 실제 main scene 통합 테스트를 모두 수행한다.
+11. 대상 플랫폼이 있으면 실제 artifact 검사, 설치·launch와 release 요구를 별도 검증한다.
 
 요청이 단순 버그 수정이어도 원인을 고치며, 스킬의 금지 사항을 우회하는 임시 전역 상태나 하드코딩을 추가하지 않는다.
 
@@ -247,6 +284,8 @@ python3 .codex/skills/game-balance/scripts/simulate_progression.py
 - 새 직업·스킬·아이템·적을 기존 resolver의 큰 분기 수정 없이 데이터 중심으로 추가할 수 있는가
 - 수치 변경은 목표 지표와 시뮬레이션 또는 플레이테스트 근거가 있는가
 - 적 공격, 게임 상태, 저장, 보상 지급과 장비 변경의 경계 사례를 회귀 검증했는가
+- 저장소 변경이면 기능 단위 commit과 PR diff가 요청 범위만 포함하고 merge gate를 통과했는가
+- 병합했다면 원격 merge commit과 로컬 기본 브랜치 동기화 상태를 확인했는가
 
 테스트할 수 없는 항목은 통과한 것으로 간주하지 않는다. 실행하지 못한 검증, 이유와 남은 위험을 최종 보고에 명확히 적는다.
 
