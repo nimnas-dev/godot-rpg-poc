@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="background" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#20164F"/>
+      <stop offset="1" stop-color="#090D24"/>
+    </linearGradient>
+    <linearGradient id="arcane" x1="152" y1="112" x2="360" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8FE7FF"/>
+      <stop offset="0.52" stop-color="#A67CFF"/>
+      <stop offset="1" stop-color="#FF76C8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#background)"/>
+  <circle cx="256" cy="256" r="158" fill="none" stroke="url(#arcane)" stroke-width="18"/>
+  <path d="M256 91L280 151L345 137L321 198L377 232L319 262L339 325L276 306L256 372L236 306L173 325L193 262L135 232L191 198L167 137L232 151Z"
+        fill="none" stroke="url(#arcane)" stroke-width="10" stroke-linejoin="round" opacity=".56"/>
+  <path d="M256 140L344 358H306L284 300H228L206 358H168L256 140ZM241 265H271L256 224L241 265Z"
+        fill="#F7F4FF"/>
+  <circle cx="256" cy="256" r="24" fill="url(#arcane)"/>
+</svg>
