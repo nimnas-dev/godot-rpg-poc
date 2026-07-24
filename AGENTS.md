@@ -13,10 +13,11 @@
 
 ### 모델 프로필
 
-현재 Codex 환경에서 `gpt-5.6-luna`가 노출되지 않는 동안 모든 서브에이전트는 `gpt-5.6-terra`만 사용한다. `gpt-5.6-sol`은 기획·추론·분석·설계 용도이므로 서브에이전트 구현·조사·검증 모델로 지정하지 않는다. Luna가 다시 노출되더라도 이 지침을 명시적으로 갱신하기 전에는 자동으로 사용하지 않는다.
+서브에이전트 모델로 `gpt-5.6-luna`와 `gpt-5.6-terra`를 허용하며, 생성 시점에 실제 노출된 선택지에서 작업 난이도와 지연 비용에 맞는 모델을 고른다. Luna가 선택지에 노출될 때는 빠르고 경계가 명확한 조사·inventory·테스트·문서 작업에, Terra는 구현·심층 분석·고위험 검토에 사용한다. `gpt-5.6-sol`은 루트의 기획·추론·분석·설계 용도이므로 서브에이전트 구현·조사·검증 모델로 지정하지 않는다. 서브에이전트를 만들기 전에는 현재 세션의 실제 모델 선택지를 확인하고, 지정 모델이 노출되지 않으면 가장 가까운 Terra 프로필로 대체한 뒤 최종 보고에 남긴다.
 
 | 프로필 | model override | reasoning effort | 사용 범위 |
 | --- | --- | --- | --- |
+| Luna 빠른 작업 | `gpt-5.6-luna` | `medium` | 짧고 독립적인 inventory, 정형화된 테스트 실행, 문서·로그 정리 |
 | Terra 기본 | `gpt-5.6-terra` | `medium` | 범위가 명확한 구현, inventory, 테스트 실행, 문서 정리 |
 | Terra 심층 | `gpt-5.6-terra` | `high` | 중간 난도 구현, 원인 분석, 코드 리뷰, 플랫폼별 조사 |
 | Terra 고난도 | `gpt-5.6-terra` | `xhigh` | migration 위험 조사, 복합 결함 재현, 독립적 architecture 대안 검토와 adversarial review |
@@ -26,6 +27,7 @@ model override를 지정할 때 `fork_turns="all"`을 사용하지 않는다. �
 권장 생성값:
 
 ```text
+빠른 작업: model="gpt-5.6-luna", reasoning_effort="medium", fork_turns="3"
 기본 작업: model="gpt-5.6-terra", reasoning_effort="medium", fork_turns="3"
 심층 작업: model="gpt-5.6-terra", reasoning_effort="high", fork_turns="3"
 고난도 검토: model="gpt-5.6-terra", reasoning_effort="xhigh", fork_turns="3"
@@ -38,7 +40,8 @@ model override를 지정할 때 `fork_turns="all"`을 사용하지 않는다. �
 | 작업 상태 | 실행 방식 |
 | --- | --- |
 | 한 파일의 명확한 수정, 짧은 설명, 순차 의존성이 강한 작업 | 루트가 직접 수행 |
-| 서로 겹치지 않는 2개 이상의 inventory·문서 조사·테스트·플랫폼 검증 | Terra를 병렬 배치 |
+| 서로 겹치지 않는 2개 이상의 짧은 inventory·문서 조사·정형화된 테스트 | Luna를 병렬 배치 |
+| 해석과 판단이 필요한 플랫폼 검증·원인 분석·코드 리뷰 | Terra 심층을 병렬 배치 |
 | 범위가 명확한 여러 구현 단위이며 파일 소유권을 분리할 수 있음 | Terra에 파일별로 배치하고 루트가 통합 |
 | 엔진 migration, 저장 호환성, 여러 시스템의 architecture 결정, 재현이 어려운 결함 | 루트가 기획·설계를 소유하고 여러 Terra 심층 에이전트에 독립 조사·대안·위험 분석을 병렬 요청 |
 | 구현과 독립적 adversarial review가 모두 필요한 고위험 변경 | 서로 다른 Terra에 구현과 read-only 리뷰를 분리하고 루트가 상충 결과를 판단 |
@@ -69,7 +72,7 @@ model override를 지정할 때 `fork_turns="all"`을 사용하지 않는다. �
 - 실패·미검증 항목과 남은 위험
 - 루트가 통합 전에 확인해야 할 충돌 또는 후속 작업
 
-루트는 병렬 결과를 합친 뒤 중복 변경, 상충하는 가정, scene/resource reference와 target platform 차이를 확인하고 end-to-end 검증을 다시 실행한다. 최종 보고에는 사용한 Terra 작업별 역할, reasoning effort, 통합 판단과 미검증 위험을 함께 기록한다.
+루트는 병렬 결과를 합친 뒤 중복 변경, 상충하는 가정, scene/resource reference와 target platform 차이를 확인하고 end-to-end 검증을 다시 실행한다. 최종 보고에는 사용한 서브에이전트 작업별 모델, 역할, reasoning effort, 통합 판단과 미검증 위험을 함께 기록한다.
 
 ## 프로젝트 스킬은 필수 규칙이다
 
