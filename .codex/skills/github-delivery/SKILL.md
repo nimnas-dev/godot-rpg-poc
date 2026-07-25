@@ -49,6 +49,34 @@ gh repo view --json nameWithOwner,defaultBranchRef
 - 기본 브랜치에 직접 기능 commit을 만들지 않는다.
 - `gh` 활성 계정과 commit author가 프로젝트 정책 또는 사용자가 지정한 identity인지 첫 commit 전에 확인한다. token, key와 credential 값은 출력하지 않는다.
 
+### GitHub 계정과 macOS Keychain을 정확히 검증한다
+
+이 저장소의 GitHub 작업 계정은 `nimnas-dev`다. macOS Keychain을 사용하는 환경에서는 제한된 sandbox 안의 `gh auth status`가 Keychain을 읽지 못해 유효한 계정을 `The token is invalid`로 잘못 보고할 수 있다. sandbox 안의 결과만으로 token 만료, 재로그인 필요 또는 권한 부재를 판정하지 않는다.
+
+다음 상황에서는 원래 작업을 중단하거나 다른 인증 방식으로 우회하기 전에 Keychain과 네트워크에 접근 가능한 승인된 실행 환경에서 인증을 다시 확인한다.
+
+- `gh auth status`가 저장된 계정을 invalid로 표시함
+- `gh repo view`가 연결 오류 또는 인증 오류를 반환함
+- `git push`가 예상과 다른 GitHub 계정의 403을 반환함
+- 현재 활성 계정과 프로젝트 정책 계정이 다름
+
+검증과 복구 순서는 다음과 같다.
+
+```bash
+gh auth status
+gh auth switch -h github.com -u nimnas-dev
+gh api user --jq .login
+gh repo view --json nameWithOwner,defaultBranchRef
+```
+
+1. Keychain 접근이 가능한 환경의 `gh auth status`에서 `nimnas-dev`가 유효한지 확인한다.
+2. 유효하지만 inactive이면 별도 확인을 요구하지 않고 `gh auth switch -h github.com -u nimnas-dev`로 전환한다.
+3. `gh api user --jq .login` 결과가 정확히 `nimnas-dev`인지 확인한다.
+4. `gh repo view`로 대상이 `nimnas-dev/godot-rpg-poc`이고 기본 브랜치가 `main`인지 다시 확인한다.
+5. 실패했던 `git push`, PR 또는 merge 명령을 한 번 다시 실행한다.
+
+Keychain 접근이 가능한 재검증에서도 `nimnas-dev`가 없거나 invalid이고 `gh api user`도 실패할 때만 사용자에게 `gh auth login`을 요청한다. `gh auth switch`는 저장된 유효 계정 선택이며 재로그인이 아니다. 이 진단 전에 SSH, 다른 GitHub 계정 또는 read-only connector로 우회하지 않는다. `gh auth token`, credential helper 원문, Keychain 값과 token 실값은 읽거나 출력하지 않는다.
+
 ## 2. 범위 안에서 구현하고 검증한다
 
 - 도메인 스킬의 절차와 완료 조건으로 가장 작은 end-to-end 변경을 구현한다.
@@ -107,7 +135,7 @@ CI나 필수 review가 구성되지 않은 저장소에서는 완료 조건에 �
 
 - 작업 미완료, 검증 실패 또는 재현하지 못한 중대한 위험
 - merge conflict, 필수 check 실패, 필수 review 대기 또는 unresolved conversation
-- GitHub 계정·commit identity 불일치, 인증·권한 부족 또는 remote 불일치
+- Keychain 접근 가능한 환경의 재검증과 계정 전환 후에도 남는 GitHub 계정·commit identity 불일치, 인증·권한 부족 또는 remote 불일치
 - 포함 범위를 판별할 수 없는 기존 사용자 변경
 - branch protection 우회나 새로운 외부 권한이 필요한 상태
 
@@ -119,4 +147,5 @@ CI나 필수 review가 구성되지 않은 저장소에서는 완료 조건에 �
 - PR 번호·링크·base/head와 최종 상태
 - 실행한 검증과 check·review 결과
 - merge commit SHA와 원격·로컬 기본 브랜치 동기화 상태
+- 실제 GitHub 활성 계정과 Keychain 접근 가능한 환경에서의 인증 검증 결과
 - 삭제하거나 보존한 branch, 미검증 항목과 남은 위험
